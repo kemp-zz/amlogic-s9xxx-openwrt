@@ -32,9 +32,7 @@ git clone https://github.com/ophub/luci-app-amlogic.git package/luci-app-amlogic
 # ------------------------------- Other ends -------------------------------
 
 
-#!/bin/bash
-
-# ... 其他代码 ...  
+  
 
 # 检查 kconfig-package 是否已安装，如果未安装则进行安装
 if ! command -v kconfig-package &> /dev/null; then
