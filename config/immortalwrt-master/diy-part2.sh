@@ -30,4 +30,13 @@ git clone https://github.com/ophub/luci-app-amlogic.git package/luci-app-amlogic
 # git apply ../config/patches/{0001*,0002*}.patch --directory=feeds/luci
 #
 # ------------------------------- Other ends -------------------------------
+#  ⬇️⬇️⬇️ 选择 jool 软件包 ⬇️⬇️⬇️
+./scripts/feeds install -a -p jool kconfig-package  # 安装 kconfig-package 工具 (如果已经安装，则可以注释掉此行)
+(
+  echo "CONFIG_PACKAGE_jool=y"
+  echo "CONFIG_PACKAGE_jool-core=y" #  根据需要选择 jool  的组件
+  echo "CONFIG_PACKAGE_jool-tools=y" 
+  echo "CONFIG_PACKAGE_jool-tools-netfilter=y"
+) | kconfig-package  # 使用管道将配置传递给 kconfig-package
+#  ⬆️⬆️⬆️ 选择 jool 软件包 ⬆️⬆️⬆️
 
