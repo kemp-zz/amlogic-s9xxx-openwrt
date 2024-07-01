@@ -30,9 +30,19 @@ git clone https://github.com/ophub/luci-app-amlogic.git package/luci-app-amlogic
 # git apply ../config/patches/{0001*,0002*}.patch --directory=feeds/luci
 #
 # ------------------------------- Other ends -------------------------------
+# 假设 $OPENWRT_KERNEL_VERSION 是通过环境变量或者其它方式传递给脚本的
+OPENWRT_KERNEL_VERSION="6.1.96"  
+KERNEL_DOWNLOAD_URL="https://github.com/ophub/kernel/releases/download/kernel_stable/${OPENWRT_KERNEL_VERSION}.tar.gz"
 
+# 下载内核
+curl -L $KERNEL_DOWNLOAD_URL -o kernel.tar.gz
+if [ $? -ne 0 ]; then
+    echo "Failed to download kernel from $KERNEL_DOWNLOAD_URL"
+    exit 1
+fi
 
-  
+# 解压内核
+tar -xzf kernel.tar.gz -C /path/to/kernel/directory
 
 # 检查 kconfig-package 是否已安装，如果未安装则进行安装
 if ! command -v kconfig-package &> /dev/null; then
@@ -50,13 +60,12 @@ if [ $? -ne 0 ]; then
     echo "Error running kconfig-package: $?" 
 fi
 
-#  ⬇️⬇️⬇️ 选择 jool 软件包 ⬇️⬇️⬇️
+# 选择 jool 软件包 - 使用 kconfig-package
 (
   echo "CONFIG_PACKAGE_jool=y"
-  echo "CONFIG_PACKAGE_jool-core=y" #  根据需要选择 jool  的组件
-  echo "CONFIG_PACKAGE_jool-tools=y" 
+  echo "CONFIG_PACKAGE_jool-core=y"
+  echo "CONFIG_PACKAGE_jool-tools=y"
   echo "CONFIG_PACKAGE_jool-tools-netfilter=y"
-) | kconfig-package  # 使用管道将配置传递给 kconfig-package
-#  ⬆️⬆️⬆️ 选择 jool 软件包 ⬆️⬆️⬆️
+) | kconfig-package -s .config # 使用管道将配置传递给 kconfig-package 并写入 .config 文件
 
 # ... 其他代码 ... 
