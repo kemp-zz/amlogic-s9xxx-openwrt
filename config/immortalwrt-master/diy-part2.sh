@@ -32,14 +32,27 @@ git clone https://github.com/ophub/luci-app-amlogic.git package/luci-app-amlogic
 # ------------------------------- Other ends -------------------------------
 
 
+#!/bin/bash
+
+# ... 其他代码 ...  
+
 # 检查 kconfig-package 是否已安装，如果未安装则进行安装
 if ! command -v kconfig-package &> /dev/null; then
     ./scripts/feeds install -a -p kconfig-package
 fi
 
-# ...  其他代码  ... 
+#  打印环境变量 PATH 的值
+echo $PATH
+
+#  尝试执行 kconfig-package 命令，并将命令的输出和错误信息都打印到控制台
+kconfig-package --version 2>&1
+
+# 打印错误信息
+if [ $? -ne 0 ]; then
+    echo "Error running kconfig-package: $?" 
+fi
+
 #  ⬇️⬇️⬇️ 选择 jool 软件包 ⬇️⬇️⬇️
-./scripts/feeds install -a -p jool kconfig-package  # 安装 kconfig-package 工具 (如果已经安装，则可以注释掉此行)
 (
   echo "CONFIG_PACKAGE_jool=y"
   echo "CONFIG_PACKAGE_jool-core=y" #  根据需要选择 jool  的组件
@@ -48,3 +61,4 @@ fi
 ) | kconfig-package  # 使用管道将配置传递给 kconfig-package
 #  ⬆️⬆️⬆️ 选择 jool 软件包 ⬆️⬆️⬆️
 
+# ... 其他代码 ... 
