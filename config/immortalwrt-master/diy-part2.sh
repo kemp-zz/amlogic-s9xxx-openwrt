@@ -70,3 +70,4 @@ fi
 ) | kconfig-package -s .config
 
 # ... 其他代码 ... 
+    tar -czvf kmods.tar.gz -C /path/to/compiled/kmods .
