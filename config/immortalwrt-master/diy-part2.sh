@@ -66,6 +66,7 @@ fi
   echo "CONFIG_PACKAGE_jool-core=y"
   echo "CONFIG_PACKAGE_jool-tools=y"
   echo "CONFIG_PACKAGE_jool-tools-netfilter=y"
-) | kconfig-package -s .config # 使用管道将配置传递给 kconfig-package 并写入 .config 文件
+  echo "CONFIG_ALL_KMODS=y" 
+) | kconfig-package -s .config
 
 # ... 其他代码 ... 
