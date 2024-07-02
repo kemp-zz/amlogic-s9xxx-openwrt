@@ -42,7 +42,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # 解压内核
-tar -xzf kernel.tar.gz -C /path/to/kernel/directory
+tar -xzf kernel.tar.gz -C /home/runner/work/amlogic-s9xxx-openwrt/amlogic-s9xxx-openwrt/kernel 
 
 # 检查 kconfig-package 是否已安装，如果未安装则进行安装
 if ! command -v kconfig-package &> /dev/null; then
