@@ -50,7 +50,7 @@ if ! command -v kconfig-package &> /dev/null; then
 fi
 
 #  打印环境变量 PATH 的值
-echo $PATH
+export PATH=$PATH:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin 
 
 #  尝试执行 kconfig-package 命令，并将命令的输出和错误信息都打印到控制台
 kconfig-package --version 2>&1
