@@ -38,12 +38,12 @@ jobs:
         cd kernel-source
         tar -xvf dtb-rockchip-6.1.99-ophub.tar.gz
 
-    - name: Configure SDK
+    - name: Create Default Config
       run: |
         cd sdk
-        cp .config .config.bak
-        make defconfig
-        cp .config.bak .config
+        if [ ! -f .config ]; then
+          make defconfig
+        fi
 
     - name: Build KMODs
       run: |
