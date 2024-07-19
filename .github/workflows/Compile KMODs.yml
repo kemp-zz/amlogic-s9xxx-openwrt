@@ -34,7 +34,8 @@ jobs:
  
       - name: Compile kmods
         run: |
-         make -C $KERNEL_DIR M=$(pwd) modules
+            make -j$(nproc) KCONFIG_CONFIG=amlogic/s9xxx_defconfig
+
 
       - name: Package kmods
         run: |
