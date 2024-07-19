@@ -34,6 +34,17 @@ jobs:
       - name: List directory contents
         run: ls -al
 
+
+      - name: List root directory contents
+        run: ls -al
+
+      - name: List config directory contents
+        run: ls -al config
+
+      - name: List make-openwrt directory contents
+        run: ls -al make-openwrt
+
+
       - name: Build KMODs
         run: |
           make -j$(nproc) KCONFIG_CONFIG=amlogic/s9xxx_defconfig
