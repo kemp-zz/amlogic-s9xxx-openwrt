@@ -18,33 +18,25 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y build-essential wget zstd
 
-    - name: Download Kernel Source
-      run: |
-        wget https://github.com/ophub/kernel/releases/download/kernel_stable/6.1.99.tar.gz
-
     - name: Download SDK
       run: |
         wget https://downloads.immortalwrt.org/snapshots/targets/armsr/armv8/immortalwrt-sdk-armsr-armv8_gcc-13.3.0_musl.Linux-x86_64.tar.zst
-
-    - name: Extract Kernel Source
-      run: |
-        tar -xvf 6.1.99.tar.gz
-        mv 6.1.99 kernel-source  # Rename the extracted directory for convenience
 
     - name: Extract SDK
       run: |
         tar --use-compress-program=unzstd -xvf immortalwrt-sdk-armsr-armv8_gcc-13.3.0_musl.Linux-x86_64.tar.zst
         mv immortalwrt-sdk-armsr-armv8_gcc-13.3.0_musl.Linux-x86_64 sdk
 
-    - name: Extract Kernel Parts
+    - name: Download Kernel Source
+      run: |
+        wget https://github.com/ophub/kernel/releases/download/kernel_stable/6.1.99.tar.gz
+        tar -xvf 6.1.99.tar.gz -C sdk
+        mv sdk/6.1.99 kernel-source
+
+    - name: Extract DTB
       run: |
         cd kernel-source
         tar -xvf dtb-rockchip-6.1.99-ophub.tar.gz
-
-    - name: Prepare Kernel Configuration
-      run: |
-        cd kernel-source
-        make ARCH=arm64 dtbs
 
     - name: Build KMODs
       run: |
