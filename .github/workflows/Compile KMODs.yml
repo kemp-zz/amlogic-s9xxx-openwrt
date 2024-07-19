@@ -31,12 +31,26 @@ jobs:
           export KERNEL_DIR=$KERNEL_DIR
           export ARCH=arm64
 
+ 
       - name: Compile kmods
         run: |
-          make -C $KERNEL_DIR M=$(pwd) modules
+         make -C $KERNEL_DIR M=$(pwd) modules
 
       - name: Package kmods
         run: |
           mkdir kmods
           find . -name '*.ko' -exec cp {} kmods/ \;
           tar -czf kmods.tar.gz kmods
+
+      - name: Publish kmods
+        uses: ncipollo/release-action@main
+        if: ${{ success() }}
+        with:
+          tag: "kmods-$(date +%Y%m%d)"
+          artifacts: kmods.tar.gz
+          allowUpdates: true
+          removeArtifacts: false
+          replacesArtifacts: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+          body: |
+             This release contains the latest compiled kmods for the kernel.
