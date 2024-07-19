@@ -6,70 +6,27 @@ on:
       - main
 
 jobs:
-  compile-kmods:
+  build:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+    - name: Checkout code
+      uses: actions/checkout@v2
 
-      - name: Download kernel source
-        run: |
-          wget https://github.com/ophub/kernel/releases/download/kernel_stable/6.1.99.tar.gz
-          tar -xvf 6.1.99.tar.gz
-          KERNEL_DIR=$(pwd)/kernel-6.1.99
+    - name: Set up environment
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential
 
-      - name: Download SDK
-        run: |
-          wget https://downloads.immortalwrt.org/snapshots/targets/armsr/armv8/immortalwrt-sdk-armsr-armv8_gcc-13.3.0_musl.Linux-x86_64.tar.zst
-          tar -xvf immortalwrt-sdk-armsr-armv8_gcc-13.3.0_musl.Linux-x86_64.tar.zst
-          SDK_DIR=$(pwd)/immortalwrt-sdk-armsr-armv8_gcc-13.3.0_musl
+    - name: Extract Kernel Source
+      run: |
+        tar -xvf 6.1.99.tar.gz
+        mv 6.1.99 kernel-source  # Rename the extracted directory for convenience
 
-      - name: Set up environment
-        run: |
-          export PATH=$SDK_DIR/toolchain/bin:$PATH
-          export CROSS_COMPILE=aarch64-linux-musl-
-          export KERNEL_DIR=$KERNEL_DIR
-          export ARCH=arm64
+    - name: List Kernel Source Directory
+      run: ls -al kernel-source
 
-      - name: List directory contents
-        run: ls -al
-
-
-      - name: List root directory contents
-        run: ls -al
-
-      - name: List config directory contents
-        run: ls -al config
-
-      - name: List make-openwrt directory contents
-        run: ls -al make-openwrt
-
-
-      - name: Build KMODs
-        run: |
-          make -j$(nproc) KCONFIG_CONFIG=amlogic/s9xxx_defconfig
-
- 
-      - name: Compile kmods
-        run: |
-            make -j$(nproc) KCONFIG_CONFIG=amlogic/s9xxx_defconfig
-
-
-      - name: Package kmods
-        run: |
-          mkdir kmods
-          find . -name '*.ko' -exec cp {} kmods/ \;
-          tar -czf kmods.tar.gz kmods
-
-      - name: Publish kmods
-        uses: ncipollo/release-action@main
-        if: ${{ success() }}
-        with:
-          tag: "kmods-$(date +%Y%m%d)"
-          artifacts: kmods.tar.gz
-          allowUpdates: true
-          removeArtifacts: false
-          replacesArtifacts: true
-          token: ${{ secrets.GITHUB_TOKEN }}
-          body: |
-             This release contains the latest compiled kmods for the kernel.
+    - name: Build KMODs
+      run: |
+        cd kernel-source
+        make -j$(nproc) KCONFIG_CONFIG=amlogic/s9xxx_defconfig
