@@ -1,0 +1,42 @@
+name: Compile KMODs
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  compile-kmods:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Download kernel source
+        run: |
+          wget https://github.com/ophub/kernel/releases/download/kernel_stable/6.1.99.tar.gz
+          tar -xvf 6.1.99.tar.gz
+          KERNEL_DIR=$(pwd)/kernel-6.1.99
+
+      - name: Download SDK
+        run: |
+          wget https://downloads.immortalwrt.org/snapshots/targets/armsr/armv8/immortalwrt-sdk-armsr-armv8_gcc-13.3.0_musl.Linux-x86_64.tar.zst
+          tar -xvf immortalwrt-sdk-armsr-armv8_gcc-13.3.0_musl.Linux-x86_64.tar.zst
+          SDK_DIR=$(pwd)/immortalwrt-sdk-armsr-armv8_gcc-13.3.0_musl
+
+      - name: Set up environment
+        run: |
+          export PATH=$SDK_DIR/toolchain/bin:$PATH
+          export CROSS_COMPILE=aarch64-linux-musl-
+          export KERNEL_DIR=$KERNEL_DIR
+          export ARCH=arm64
+
+      - name: Compile kmods
+        run: |
+          make -C $KERNEL_DIR M=$(pwd) modules
+
+      - name: Package kmods
+        run: |
+          mkdir kmods
+          find . -name '*.ko' -exec cp {} kmods/ \;
+          tar -czf kmods.tar.gz kmods
