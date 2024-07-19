@@ -33,6 +33,19 @@ jobs:
     - name: List Kernel Source Directory
       run: ls -al kernel-source
 
+    - name: Extract Kernel Parts
+      run: |
+        cd kernel-source
+        tar -xvf header-6.1.99-ophub.tar.gz
+        tar -xvf dtb-allwinner-6.1.99-ophub.tar.gz
+        tar -xvf dtb-amlogic-6.1.99-ophub.tar.gz
+        tar -xvf dtb-rockchip-6.1.99-ophub.tar.gz
+        tar -xvf boot-6.1.99-ophub.tar.gz
+        tar -xvf modules-6.1.99-ophub.tar.gz
+
+    - name: List Extracted Kernel Parts
+      run: ls -al kernel-source
+
     - name: Build KMODs
       run: |
         cd kernel-source
