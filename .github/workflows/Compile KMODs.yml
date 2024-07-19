@@ -31,6 +31,13 @@ jobs:
           export KERNEL_DIR=$KERNEL_DIR
           export ARCH=arm64
 
+      - name: List directory contents
+        run: ls -al
+
+      - name: Build KMODs
+        run: |
+          make -j$(nproc) KCONFIG_CONFIG=amlogic/s9xxx_defconfig
+
  
       - name: Compile kmods
         run: |
