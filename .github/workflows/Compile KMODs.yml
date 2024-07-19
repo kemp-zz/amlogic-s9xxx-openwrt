@@ -16,37 +16,37 @@ jobs:
     - name: Set up environment
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential wget
+        sudo apt-get install -y build-essential wget zstd
 
     - name: Download Kernel Source
       run: |
         wget https://github.com/ophub/kernel/releases/download/kernel_stable/6.1.99.tar.gz
 
-    - name: List root directory contents
-      run: ls -al
+    - name: Download SDK
+      run: |
+        wget https://downloads.immortalwrt.org/snapshots/targets/armsr/armv8/immortalwrt-sdk-armsr-armv8_gcc-13.3.0_musl.Linux-x86_64.tar.zst
 
     - name: Extract Kernel Source
       run: |
         tar -xvf 6.1.99.tar.gz
         mv 6.1.99 kernel-source  # Rename the extracted directory for convenience
 
-    - name: List Kernel Source Directory
-      run: ls -al kernel-source
+    - name: Extract SDK
+      run: |
+        tar --use-compress-program=unzstd -xvf immortalwrt-sdk-armsr-armv8_gcc-13.3.0_musl.Linux-x86_64.tar.zst
+        mv immortalwrt-sdk-armsr-armv8_gcc-13.3.0_musl.Linux-x86_64 sdk
 
     - name: Extract Kernel Parts
       run: |
         cd kernel-source
-        tar -xvf header-6.1.99-ophub.tar.gz
-        tar -xvf dtb-allwinner-6.1.99-ophub.tar.gz
-        tar -xvf dtb-amlogic-6.1.99-ophub.tar.gz
         tar -xvf dtb-rockchip-6.1.99-ophub.tar.gz
-        tar -xvf boot-6.1.99-ophub.tar.gz
-        tar -xvf modules-6.1.99-ophub.tar.gz
 
-    - name: List Extracted Kernel Parts
-      run: ls -al kernel-source
+    - name: Prepare Kernel Configuration
+      run: |
+        cd kernel-source
+        make ARCH=arm64 dtbs
 
     - name: Build KMODs
       run: |
-        cd kernel-source
-        make -j$(nproc) KCONFIG_CONFIG=amlogic/s9xxx_defconfig
+        cd sdk
+        make package/kernel/linux/compile V=s
