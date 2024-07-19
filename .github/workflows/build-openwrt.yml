@@ -240,7 +240,7 @@ jobs:
                               haveged htop git-lfs squashfs-tools \
                               bc -y subversion  
                               # Install libpcre-dev
-                              libpcre3-dev
+                              #libpcre3-dev
 
       - name: Initialization environment
         id: init
