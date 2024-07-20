@@ -68,16 +68,20 @@ jobs:
         tar -xvf $GITHUB_WORKSPACE/kernel_source/6.1.99/modules-6.1.99-ophub.tar.gz -C target/linux/
         ls target/linux
 
-    - name: Create Default Config
+    - name: Generate Default Config
       run: |
         cd immortalwrt
         make defconfig
 
-    - name: Enable All KMODs and Packages
+    - name: Menu Config (Interactive)
       run: |
         cd immortalwrt
-        sed -i 's/# CONFIG_PACKAGE_kmod-.* is not set/CONFIG_PACKAGE_kmod-*=m/g' .config
-        sed -i 's/# CONFIG_PACKAGE_.* is not set/CONFIG_PACKAGE_*=m/g' .config
+        make menuconfig
+
+    - name: Save Config
+      run: |
+        cd immortalwrt
+        cp .config .config.backup
 
     - name: Download Sources
       run: |
