@@ -56,7 +56,7 @@ jobs:
         cd sdk
         # Enable all KMODs in the configuration
         sed -i 's/# CONFIG_PACKAGE_kmod-.* is not set/CONFIG_PACKAGE_kmod-*=m/g' .config
-        sed -i 's/# CONFIG_PACKAGE_kmod-.* is not set/CONFIG_PACKAGE_kmod-*=m/g' .config
+
         # Enable all packages (make sure to add any other relevant patterns for your packages)
         sed -i 's/# CONFIG_PACKAGE_.* is not set/CONFIG_PACKAGE_*=m/g' .config
 
