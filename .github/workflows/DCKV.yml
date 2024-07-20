@@ -29,5 +29,6 @@ jobs:
 
     - name: Check Kernel Version
       run: |
-        cd immortalwrt-sdk-23.05.2-armsr-armv8
+        SDK_DIR=$(ls -d */ | grep immortalwrt-sdk)
+        cd $SDK_DIR
         grep "LINUX_VERSION" .config || echo "LINUX_VERSION not found in .config"
