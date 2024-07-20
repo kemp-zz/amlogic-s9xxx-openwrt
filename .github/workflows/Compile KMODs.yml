@@ -44,6 +44,17 @@ jobs:
         wget https://github.com/ophub/kernel/releases/download/kernel_stable/6.1.99.tar.gz
         tar -xvf 6.1.99.tar.gz
 
+    - name: Check Kernel Source Files
+      run: |
+        cd kernel_source/6.1.99
+        ls -l
+        if [ ! -f boot-6.1.99-ophub.tar.gz ]; then echo "boot-6.1.99-ophub.tar.gz not found"; exit 1; fi
+        if [ ! -f dtb-allwinner-6.1.99-ophub.tar.gz ]; then echo "dtb-allwinner-6.1.99-ophub.tar.gz not found"; exit 1; fi
+        if [ ! -f dtb-amlogic-6.1.99-ophub.tar.gz ]; then echo "dtb-amlogic-6.1.99-ophub.tar.gz not found"; exit 1; fi
+        if [ ! -f dtb-rockchip-6.1.99-ophub.tar.gz ]; then echo "dtb-rockchip-6.1.99-ophub.tar.gz not found"; exit 1; fi
+        if [ ! -f header-6.1.99-ophub.tar.gz ]; then echo "header-6.1.99-ophub.tar.gz not found"; exit 1; fi
+        if [ ! -f modules-6.1.99-ophub.tar.gz ]; then echo "modules-6.1.99-ophub.tar.gz not found"; exit 1; fi
+
     - name: Replace Kernel Source
       run: |
         cd immortalwrt
@@ -90,5 +101,3 @@ jobs:
     - name: Create Release
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        gh release create "v$(date +'%Y%m%d%H%M%S')" kmods.tar.gz packages.tar.gz -t "Release $(date +'%Y-%m-%d %H:%M:%S')" -n "Automated release of kmods and packages"
