@@ -70,9 +70,11 @@ jobs:
         cd sdk
         make package/kernel/linux/compile V=s
 
-    - name: Build Packages
+    - name: Build Packages without Signing
       run: |
         cd sdk
+        echo 'CONFIG_SIGNED_PACKAGES=n' >> .config
+        make defconfig
         make package/index V=s
 
     - name: Archive KMODs and Packages
