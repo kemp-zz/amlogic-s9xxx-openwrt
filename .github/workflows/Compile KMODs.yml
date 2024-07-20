@@ -81,22 +81,6 @@ jobs:
           exit 1
         fi
 
-
-    - name: Menu Config (Interactive)
-      run: |
-        cd immortalwrt
-        make menuconfig
-
-    - name: Save Config
-      run: |
-        cd immortalwrt
-        cp .config .config.backup
-
-    - name: Download Sources
-      run: |
-        cd immortalwrt
-        make download -j8
-
     - name: Build KMODs and Packages
       run: |
         cd immortalwrt
