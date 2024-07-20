@@ -51,6 +51,14 @@ jobs:
           make defconfig
         fi
 
+    - name: Install Feeds and Dependencies
+      run: |
+        cd sdk
+        ./scripts/feeds update -a
+        ./scripts/feeds install -a
+        # Install specific packages
+        ./scripts/feeds install kmod-jool-netfilter
+
     - name: Enable All KMODs and Packages
       run: |
         cd sdk
@@ -58,12 +66,6 @@ jobs:
         sed -i 's/# CONFIG_PACKAGE_kmod-.* is not set/CONFIG_PACKAGE_kmod-*=m/g' .config
         # Enable all packages (make sure to add any other relevant patterns for your packages)
         sed -i 's/# CONFIG_PACKAGE_.* is not set/CONFIG_PACKAGE_*=m/g' .config
-
-    - name: Install Dependencies for Packages
-      run: |
-        cd sdk
-        ./scripts/feeds update -a
-        ./scripts/feeds install -a
 
     - name: Build KMODs
       run: |
