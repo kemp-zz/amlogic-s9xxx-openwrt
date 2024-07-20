@@ -1,4 +1,4 @@
-name: Compile KMODs
+name: Compile KMODs and Packages
 
 on:
   push:
@@ -38,6 +38,12 @@ jobs:
         cd kernel-source
         tar -xvf dtb-rockchip-6.1.99-ophub.tar.gz
 
+    - name: Download Packages Source
+      run: |
+        wget https://github.com/immortalwrt/packages/archive/refs/heads/master.tar.gz
+        tar -xvf master.tar.gz
+        mv packages-master packages
+
     - name: Create Default Config
       run: |
         cd sdk
@@ -45,21 +51,29 @@ jobs:
           make defconfig
         fi
 
-    - name: Enable all KMODs
+    - name: Enable All KMODs
       run: |
         cd sdk
-        # Assuming you want to enable all kmods in the configuration
-        # Update configuration to enable all kmods (example: kmod-xxx)
+        # Enable all KMODs in the configuration
         sed -i 's/# CONFIG_PACKAGE_kmod-.* is not set/CONFIG_PACKAGE_kmod-*=m/g' .config
+        sed -i 's/# CONFIG_PACKAGE_kmod-.* is not set/CONFIG_PACKAGE_kmod-*=m/g' .config
+        # Enable all packages (make sure to add any other relevant patterns for your packages)
+        sed -i 's/# CONFIG_PACKAGE_.* is not set/CONFIG_PACKAGE_*=m/g' .config
 
     - name: Build KMODs
       run: |
         cd sdk
         make package/kernel/linux/compile V=s
 
-    - name: Archive KMODs
+    - name: Build Packages
+      run: |
+        cd sdk
+        make package/index V=s
+
+    - name: Archive KMODs and Packages
       run: |
         tar -czvf kmods.tar.gz sdk/bin/targets/*/*/packages/*.ipk
+        tar -czvf packages.tar.gz packages
 
     - name: Install GitHub CLI
       run: |
@@ -69,4 +83,4 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        gh release create "v$(date +'%Y%m%d%H%M%S')" kmods.tar.gz -t "Release $(date +'%Y-%m-%d %H:%M:%S')" -n "Automated release of kmods"
+        gh release create "v$(date +'%Y%m%d%H%M%S')" kmods.tar.gz packages.tar.gz -t "Release $(date +'%Y-%m-%d %H:%M:%S')" -n "Automated release of kmods and packages"
