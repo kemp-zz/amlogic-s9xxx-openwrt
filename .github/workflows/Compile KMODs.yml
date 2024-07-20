@@ -39,9 +39,9 @@ jobs:
 
     - name: Download and Extract Kernel Source
       run: |
-        mkdir kernel_source
+        mkdir -p kernel_source/6.1.99
         wget https://github.com/ophub/kernel/releases/download/kernel_stable/6.1.99.tar.gz
-        tar -xvf 6.1.99.tar.gz -C kernel_source
+        tar -xvf 6.1.99.tar.gz -C kernel_source/6.1.99
 
     - name: List Extracted Kernel Source Contents
       run: |
@@ -52,13 +52,13 @@ jobs:
         cd immortalwrt
         rm -rf target/linux
         mkdir -p target/linux
-        cp -r ../kernel_source/* target/linux/
-
-    - name: Extract DTB if Present
-      run: |
-        if [ -f kernel_source/dtb-rockchip-6.1.99-ophub.tar.gz ]; then
-          tar -xvf kernel_source/dtb-rockchip-6.1.99-ophub.tar.gz -C immortalwrt/target/linux
-        fi
+        cp -r ../kernel_source/6.1.99/* target/linux/
+        tar -xvf target/linux/boot-6.1.99-ophub.tar.gz -C target/linux/
+        tar -xvf target/linux/dtb-allwinner-6.1.99-ophub.tar.gz -C target/linux/
+        tar -xvf target/linux/dtb-amlogic-6.1.99-ophub.tar.gz -C target/linux/
+        tar -xvf target/linux/dtb-rockchip-6.1.99-ophub.tar.gz -C target/linux/
+        tar -xvf target/linux/header-6.1.99-ophub.tar.gz -C target/linux/
+        tar -xvf target/linux/modules-6.1.99-ophub.tar.gz -C target/linux/
 
     - name: Create Default Config
       run: |
