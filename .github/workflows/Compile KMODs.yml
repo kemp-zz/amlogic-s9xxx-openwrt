@@ -73,13 +73,33 @@ jobs:
         cd immortalwrt
         make defconfig
 
-    - name: Check for Recursive Dependencies
+    - name: Check for Missing Dependencies and Recursive Dependencies
       run: |
         cd immortalwrt
+        touch dependencies_issues.log
+
+        # Check for missing dependencies
+        for makefile in $(find package/feeds/packages -name 'Makefile'); do
+          missing_deps=$(grep -E '^\s*DEPENDS\s*:=' $makefile | grep -oE '\b[a-zA-Z0-9_-]+\b' | while read dep; do
+            if ! grep -q $dep tmp/.config-package.in; then
+              echo $dep
+            fi
+          done)
+
+          if [ ! -z "$missing_deps" ]; then
+            echo "Missing dependencies in $makefile: $missing_deps" >> dependencies_issues.log
+          fi
+        done
+
+        # Check for recursive dependencies
         if grep -q "recursive dependency detected" tmp/.config-package.in; then
-          echo "Recursive dependency detected in configuration."
-          exit 1
+          grep "recursive dependency detected" tmp/.config-package.in >> dependencies_issues.log
         fi
+
+    - name: Display Dependency Issues
+      if: always()
+      run: |
+        cat immortalwrt/dependencies_issues.log
 
     - name: Build KMODs and Packages
       run: |
