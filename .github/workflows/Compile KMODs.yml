@@ -53,12 +53,29 @@ jobs:
         rm -rf target/linux
         mkdir -p target/linux
         cp -r ../kernel_source/6.1.99/* target/linux/
-        tar -xvf target/linux/boot-6.1.99-ophub.tar.gz -C target/linux/
-        tar -xvf target/linux/dtb-allwinner-6.1.99-ophub.tar.gz -C target/linux/
-        tar -xvf target/linux/dtb-amlogic-6.1.99-ophub.tar.gz -C target/linux/
-        tar -xvf target/linux/dtb-rockchip-6.1.99-ophub.tar.gz -C target/linux/
-        tar -xvf target/linux/header-6.1.99-ophub.tar.gz -C target/linux/
-        tar -xvf target/linux/modules-6.1.99-ophub.tar.gz -C target/linux/
+        ls target/linux
+
+    - name: Extract Kernel Archives
+      run: |
+        cd immortalwrt/target/linux
+        if [ -f boot-6.1.99-ophub.tar.gz ]; then
+          tar -xvf boot-6.1.99-ophub.tar.gz
+        fi
+        if [ -f dtb-allwinner-6.1.99-ophub.tar.gz ]; then
+          tar -xvf dtb-allwinner-6.1.99-ophub.tar.gz
+        fi
+        if [ -f dtb-amlogic-6.1.99-ophub.tar.gz ]; then
+          tar -xvf dtb-amlogic-6.1.99-ophub.tar.gz
+        fi
+        if [ -f dtb-rockchip-6.1.99-ophub.tar.gz ]; then
+          tar -xvf dtb-rockchip-6.1.99-ophub.tar.gz
+        fi
+        if [ -f header-6.1.99-ophub.tar.gz ]; then
+          tar -xvf header-6.1.99-ophub.tar.gz
+        fi
+        if [ -f modules-6.1.99-ophub.tar.gz ]; then
+          tar -xvf modules-6.1.99-ophub.tar.gz
+        fi
 
     - name: Create Default Config
       run: |
