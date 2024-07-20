@@ -30,11 +30,6 @@ jobs:
         ./scripts/feeds update -a
         ./scripts/feeds install -a
 
-    - name: List Installed Feeds
-      run: |
-        cd immortalwrt
-        ls -R feeds
-
     - name: Clone Packages Repository
       run: |
         git clone https://github.com/immortalwrt/packages
@@ -48,26 +43,18 @@ jobs:
         wget https://github.com/ophub/kernel/releases/download/kernel_stable/6.1.99.tar.gz
         tar -xvf 6.1.99.tar.gz -C kernel_source/6.1.99
 
-    - name: List Extracted Kernel Source Contents
-      run: |
-        tree kernel_source
-
     - name: Replace Kernel Source
       run: |
         cd immortalwrt
         rm -rf target/linux
         mkdir -p target/linux
-        cp -r ../kernel_source/6.1.99/* target/linux/
+        tar -xvf ../kernel_source/6.1.99/boot-6.1.99-ophub.tar.gz -C target/linux/
+        tar -xvf ../kernel_source/6.1.99/dtb-allwinner-6.1.99-ophub.tar.gz -C target/linux/
+        tar -xvf ../kernel_source/6.1.99/dtb-amlogic-6.1.99-ophub.tar.gz -C target/linux/
+        tar -xvf ../kernel_source/6.1.99/dtb-rockchip-6.1.99-ophub.tar.gz -C target/linux/
+        tar -xvf ../kernel_source/6.1.99/header-6.1.99-ophub.tar.gz -C target/linux/
+        tar -xvf ../kernel_source/6.1.99/modules-6.1.99-ophub.tar.gz -C target/linux/
         ls target/linux
-
-    - name: Extract Kernel Archives
-      run: |
-        cd immortalwrt/target/linux
-        for file in *.tar.gz; do
-          if [ -f "$file" ]; then
-            tar -xvf "$file"
-          fi
-        done
 
     - name: Create Default Config
       run: |
