@@ -16,7 +16,7 @@ jobs:
     - name: Set up environment
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential wget zstd libncurses5-dev gawk git gettext libssl-dev xsltproc rsync unzip
+        sudo apt-get install -y build-essential wget zstd libncurses5-dev gawk git gettext libssl-dev xsltproc rsync unzip tree
 
     - name: Clone ImmortalWRT Repository
       run: |
@@ -43,6 +43,10 @@ jobs:
         wget https://github.com/ophub/kernel/releases/download/kernel_stable/6.1.99.tar.gz
         tar -xvf 6.1.99.tar.gz -C kernel_source
 
+    - name: List Extracted Kernel Source Contents
+      run: |
+        tree kernel_source
+
     - name: Replace Kernel Source
       run: |
         cd immortalwrt
@@ -50,10 +54,11 @@ jobs:
         mkdir -p target/linux
         cp -r ../kernel_source/* target/linux/
 
-    - name: Extract DTB
+    - name: Extract DTB if Present
       run: |
-        cd immortalwrt/target/linux
-        tar -xvf dtb-rockchip-6.1.99-ophub.tar.gz
+        if [ -f kernel_source/dtb-rockchip-6.1.99-ophub.tar.gz ]; then
+          tar -xvf kernel_source/dtb-rockchip-6.1.99-ophub.tar.gz -C immortalwrt/target/linux
+        fi
 
     - name: Create Default Config
       run: |
