@@ -42,7 +42,7 @@ jobs:
         mkdir -p kernel_source/6.1.99
         cd kernel_source/6.1.99
         wget https://github.com/ophub/kernel/releases/download/kernel_stable/6.1.99.tar.gz
-        tar -xvf 6.1.99.tar.gz
+        tar -xvf 6.1.99.tar.gz --strip-components=1
 
     - name: Check Kernel Source Files
       run: |
