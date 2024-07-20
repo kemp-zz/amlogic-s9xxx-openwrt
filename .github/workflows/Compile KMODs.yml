@@ -30,6 +30,11 @@ jobs:
         ./scripts/feeds update -a
         ./scripts/feeds install -a
 
+    - name: List Installed Feeds
+      run: |
+        cd immortalwrt
+        ls -R feeds
+
     - name: Clone Packages Repository
       run: |
         git clone https://github.com/immortalwrt/packages
@@ -58,24 +63,11 @@ jobs:
     - name: Extract Kernel Archives
       run: |
         cd immortalwrt/target/linux
-        if [ -f boot-6.1.99-ophub.tar.gz ]; then
-          tar -xvf boot-6.1.99-ophub.tar.gz
-        fi
-        if [ -f dtb-allwinner-6.1.99-ophub.tar.gz ]; then
-          tar -xvf dtb-allwinner-6.1.99-ophub.tar.gz
-        fi
-        if [ -f dtb-amlogic-6.1.99-ophub.tar.gz ]; then
-          tar -xvf dtb-amlogic-6.1.99-ophub.tar.gz
-        fi
-        if [ -f dtb-rockchip-6.1.99-ophub.tar.gz ]; then
-          tar -xvf dtb-rockchip-6.1.99-ophub.tar.gz
-        fi
-        if [ -f header-6.1.99-ophub.tar.gz ]; then
-          tar -xvf header-6.1.99-ophub.tar.gz
-        fi
-        if [ -f modules-6.1.99-ophub.tar.gz ]; then
-          tar -xvf modules-6.1.99-ophub.tar.gz
-        fi
+        for file in *.tar.gz; do
+          if [ -f "$file" ]; then
+            tar -xvf "$file"
+          fi
+        done
 
     - name: Create Default Config
       run: |
@@ -85,9 +77,7 @@ jobs:
     - name: Enable All KMODs and Packages
       run: |
         cd immortalwrt
-        # Enable all KMODs in the configuration
         sed -i 's/# CONFIG_PACKAGE_kmod-.* is not set/CONFIG_PACKAGE_kmod-*=m/g' .config
-        # Enable all packages (make sure to add any other relevant patterns for your packages)
         sed -i 's/# CONFIG_PACKAGE_.* is not set/CONFIG_PACKAGE_*=m/g' .config
 
     - name: Download Sources
