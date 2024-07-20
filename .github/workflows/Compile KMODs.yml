@@ -51,7 +51,7 @@ jobs:
           make defconfig
         fi
 
-    - name: Install Feeds and Dependencies
+    - name: Update and Install Feeds
       run: |
         cd sdk
         ./scripts/feeds update -a
@@ -61,6 +61,19 @@ jobs:
         ./scripts/feeds install kmod-crypto-md5
         ./scripts/feeds install kmod-nf-conntrack
         ./scripts/feeds install kmod-nf-conntrack6
+        ./scripts/feeds install kmod-jool-netfilter
+
+    - name: Check for Missing Packages
+      run: |
+        cd sdk
+        # Check for missing packages
+        if [ ! -d "package/libs/libpcre" ]; then
+          git clone https://github.com/openwrt/packages.git package/libs/libpcre
+        fi
+        if [ ! -d "package/kernel/linux/modules" ]; then
+          git clone https://github.com/openwrt/openwrt.git package/kernel/linux/modules
+        fi
+        ./scripts/feeds install -a
         ./scripts/feeds install kmod-jool-netfilter
 
     - name: Enable All KMODs and Packages
@@ -96,4 +109,5 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        gh release create "v$(date +'%Y%m%d%H%M%S')" kmods.tar.gz packages.tar.gz -t "Release $(date +'%Y-%m-%d %H:%M:%S')" 
+        gh release create "v$(date +'%Y%m%d%H%M%S')" kmods.tar.gz packages.tar.gz -t "Release $(date +'%Y-%m-%d %H:%M:%S')" -n "Automated release of kmods and packages"
+
