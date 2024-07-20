@@ -1,0 +1,33 @@
+name: DCKV
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  check-kernel-version:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Download ImmortalWRT SDK
+      run: |
+        wget https://downloads.immortalwrt.org/releases/23.05.2/targets/armsr/armv8/immortalwrt-sdk-23.05.2-armsr-armv8_gcc-12.3.0_musl.Linux-x86_64.tar.xz -O immortalwrt-sdk.tar.xz
+
+    - name: Install xz-utils
+      run: sudo apt-get update && sudo apt-get install -y xz-utils
+
+    - name: Extract ImmortalWRT SDK
+      run: tar -xvf immortalwrt-sdk.tar.xz
+
+    - name: Check Kernel Version
+      run: |
+        cd immortalwrt-sdk-23.05.2-armsr-armv8
+        grep "LINUX_VERSION" .config || echo "LINUX_VERSION not found in .config"
