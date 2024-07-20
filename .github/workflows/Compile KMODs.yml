@@ -30,31 +30,35 @@ jobs:
         ./scripts/feeds update -a
         ./scripts/feeds install -a
 
+    - name: Clone Packages Repository
+      run: |
+        git clone https://github.com/immortalwrt/packages
+        cd packages
+        git checkout master
+        cp -r * ../immortalwrt/package/feeds/packages/
+
+    - name: Download and Extract Kernel Source
+      run: |
+        mkdir kernel_source
+        wget https://github.com/ophub/kernel/releases/download/kernel_stable/6.1.99.tar.gz
+        tar -xvf 6.1.99.tar.gz -C kernel_source
+
     - name: Replace Kernel Source
       run: |
         cd immortalwrt
-        # Remove default kernel source if exists
         rm -rf target/linux
         mkdir -p target/linux
-        wget https://github.com/ophub/kernel/releases/download/kernel_stable/6.1.99.tar.gz
-        tar -xvf 6.1.99.tar.gz -C target/linux --strip-components=1
+        cp -r ../kernel_source/* target/linux/
 
     - name: Extract DTB
       run: |
         cd immortalwrt/target/linux
-        wget https://github.com/ophub/kernel/releases/download/kernel_stable/dtb-rockchip-6.1.99-ophub.tar.gz
         tar -xvf dtb-rockchip-6.1.99-ophub.tar.gz
 
     - name: Create Default Config
       run: |
         cd immortalwrt
         make defconfig
-
-    - name: Install Specific Packages and Dependencies
-      run: |
-        cd immortalwrt
-        ./scripts/feeds update packages
-        ./scripts/feeds install -a -p packages
 
     - name: Enable All KMODs and Packages
       run: |
