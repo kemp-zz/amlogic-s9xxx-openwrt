@@ -27,8 +27,16 @@ jobs:
     - name: Extract ImmortalWRT SDK
       run: tar -xvf immortalwrt-sdk.tar.xz
 
+    - name: List extracted files with tree
+      run: |
+        SDK_DIR=$(ls -d */ | grep immortalwrt-sdk)
+        tree $SDK_DIR
+
     - name: Check Kernel Version
       run: |
         SDK_DIR=$(ls -d */ | grep immortalwrt-sdk)
-        cd $SDK_DIR
-        grep "LINUX_VERSION" .config || echo "LINUX_VERSION not found in .config"
+        if [ -f "$SDK_DIR/.config" ]; then
+          grep "LINUX_VERSION" "$SDK_DIR/.config" || echo "LINUX_VERSION not found in .config"
+        else
+          echo ".config file not found in $SDK_DIR"
+        fi
