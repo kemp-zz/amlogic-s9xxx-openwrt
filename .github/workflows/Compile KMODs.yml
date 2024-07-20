@@ -40,20 +40,21 @@ jobs:
     - name: Download and Extract Kernel Source
       run: |
         mkdir -p kernel_source/6.1.99
+        cd kernel_source/6.1.99
         wget https://github.com/ophub/kernel/releases/download/kernel_stable/6.1.99.tar.gz
-        tar -xvf 6.1.99.tar.gz -C kernel_source/6.1.99
+        tar -xvf 6.1.99.tar.gz
 
     - name: Replace Kernel Source
       run: |
         cd immortalwrt
         rm -rf target/linux
         mkdir -p target/linux
-        tar -xvf ../kernel_source/6.1.99/boot-6.1.99-ophub.tar.gz -C target/linux/
-        tar -xvf ../kernel_source/6.1.99/dtb-allwinner-6.1.99-ophub.tar.gz -C target/linux/
-        tar -xvf ../kernel_source/6.1.99/dtb-amlogic-6.1.99-ophub.tar.gz -C target/linux/
-        tar -xvf ../kernel_source/6.1.99/dtb-rockchip-6.1.99-ophub.tar.gz -C target/linux/
-        tar -xvf ../kernel_source/6.1.99/header-6.1.99-ophub.tar.gz -C target/linux/
-        tar -xvf ../kernel_source/6.1.99/modules-6.1.99-ophub.tar.gz -C target/linux/
+        tar -xvf $GITHUB_WORKSPACE/kernel_source/6.1.99/boot-6.1.99-ophub.tar.gz -C target/linux/
+        tar -xvf $GITHUB_WORKSPACE/kernel_source/6.1.99/dtb-allwinner-6.1.99-ophub.tar.gz -C target/linux/
+        tar -xvf $GITHUB_WORKSPACE/kernel_source/6.1.99/dtb-amlogic-6.1.99-ophub.tar.gz -C target/linux/
+        tar -xvf $GITHUB_WORKSPACE/kernel_source/6.1.99/dtb-rockchip-6.1.99-ophub.tar.gz -C target/linux/
+        tar -xvf $GITHUB_WORKSPACE/kernel_source/6.1.99/header-6.1.99-ophub.tar.gz -C target/linux/
+        tar -xvf $GITHUB_WORKSPACE/kernel_source/6.1.99/modules-6.1.99-ophub.tar.gz -C target/linux/
         ls target/linux
 
     - name: Create Default Config
