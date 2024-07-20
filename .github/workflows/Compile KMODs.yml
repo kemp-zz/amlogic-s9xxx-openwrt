@@ -1,58 +1,65 @@
 name: Compile KMODs
 
-on:  
-  push:  
-    branches:  
-      - main  
+on:
+  push:
+    branches:
+      - main
 
-jobs:  
-  build:  
-    runs-on: ubuntu-latest  
+jobs:
+  build:
+    runs-on: ubuntu-latest
 
-    steps:  
-    - name: Checkout code  
-      uses: actions/checkout@v2  
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
 
-    - name: Set up environment  
-      run: |  
-        sudo apt-get update  
-        sudo apt-get install -y build-essential wget zstd  
+    - name: Set up environment
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential wget zstd
 
-    - name: Download SDK  
-      run: |  
-        wget https://downloads.immortalwrt.org/snapshots/targets/armsr/armv8/immortalwrt-sdk-armsr-armv8_gcc-13.3.0_musl.Linux-x86_64.tar.zst  
+    - name: Download SDK
+      run: |
+        wget https://downloads.immortalwrt.org/snapshots/targets/armsr/armv8/immortalwrt-sdk-armsr-armv8_gcc-13.3.0_musl.Linux-x86_64.tar.zst
 
-    - name: Extract SDK  
-      run: |  
-        tar --use-compress-program=unzstd -xvf immortalwrt-sdk-armsr-armv8_gcc-13.3.0_musl.Linux-x86_64.tar.zst  
-        mv immortalwrt-sdk-armsr-armv8_gcc-13.3.0_musl.Linux-x86_64 sdk  
+    - name: Extract SDK
+      run: |
+        tar --use-compress-program=unzstd -xvf immortalwrt-sdk-armsr-armv8_gcc-13.3.0_musl.Linux-x86_64.tar.zst
+        mv immortalwrt-sdk-armsr-armv8_gcc-13.3.0_musl.Linux-x86_64 sdk
 
-    - name: Download Kernel Source  
-      run: |  
-        wget https://github.com/ophub/kernel/releases/download/kernel_stable/6.1.99.tar.gz  
-        tar -xvf 6.1.99.tar.gz -C sdk  
-        mv sdk/6.1.99 kernel-source  
+    - name: Download Kernel Source
+      run: |
+        wget https://github.com/ophub/kernel/releases/download/kernel_stable/6.1.99.tar.gz
+        tar -xvf 6.1.99.tar.gz -C sdk
+        mv sdk/6.1.99 kernel-source
 
-    - name: Extract DTB  
-      run: |  
-        cd kernel-source  
-        tar -xvf dtb-rockchip-6.1.99-ophub.tar.gz  
+    - name: Extract DTB
+      run: |
+        cd kernel-source
+        tar -xvf dtb-rockchip-6.1.99-ophub.tar.gz
 
-    - name: Create Default Config  
-      run: |  
-        cd sdk  
-        if [ ! -f .config ]; then  
-          make defconfig  
-        fi  
+    - name: Create Default Config
+      run: |
+        cd sdk
+        if [ ! -f .config ]; then
+          make defconfig
+        fi
 
-    - name: Build KMODs  
-      run: |  
-        cd sdk  
-        make package/kernel/linux/compile V=s  
+    - name: Enable all KMODs
+      run: |
+        cd sdk
+        # Assuming you want to enable all kmods in the configuration
+        # Update configuration to enable all kmods (example: kmod-xxx)
+        sed -i 's/# CONFIG_PACKAGE_kmod-.* is not set/CONFIG_PACKAGE_kmod-*=m/g' .config
 
-    - name: Archive KMODs  
-      run: |  
-        tar -czvf kmods.tar.gz sdk/bin/targets/*/*/packages/*.ipk  
+    - name: Build KMODs
+      run: |
+        cd sdk
+        make package/kernel/linux/compile V=s
+
+    - name: Archive KMODs
+      run: |
+        tar -czvf kmods.tar.gz sdk/bin/targets/*/*/packages/*.ipk
 
     - name: Install GitHub CLI
       run: |
@@ -63,4 +70,3 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         gh release create "v$(date +'%Y%m%d%H%M%S')" kmods.tar.gz -t "Release $(date +'%Y-%m-%d %H:%M:%S')" -n "Automated release of kmods"
-
