@@ -73,6 +73,15 @@ jobs:
         cd immortalwrt
         make defconfig
 
+    - name: Check for Recursive Dependencies
+      run: |
+        cd immortalwrt
+        if grep -q "recursive dependency detected" tmp/.config-package.in; then
+          echo "Recursive dependency detected in configuration."
+          exit 1
+        fi
+
+
     - name: Menu Config (Interactive)
       run: |
         cd immortalwrt
