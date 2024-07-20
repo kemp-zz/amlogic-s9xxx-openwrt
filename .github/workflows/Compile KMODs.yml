@@ -33,14 +33,16 @@ jobs:
     - name: Replace Kernel Source
       run: |
         cd immortalwrt
+        # Remove default kernel source if exists
         rm -rf target/linux
+        mkdir -p target/linux
         wget https://github.com/ophub/kernel/releases/download/kernel_stable/6.1.99.tar.gz
-        tar -xvf 6.1.99.tar.gz
-        mv 6.1.99 target/linux
+        tar -xvf 6.1.99.tar.gz -C target/linux --strip-components=1
 
     - name: Extract DTB
       run: |
-        cd target/linux
+        cd immortalwrt/target/linux
+        wget https://github.com/ophub/kernel/releases/download/kernel_stable/dtb-rockchip-6.1.99-ophub.tar.gz
         tar -xvf dtb-rockchip-6.1.99-ophub.tar.gz
 
     - name: Create Default Config
@@ -51,11 +53,8 @@ jobs:
     - name: Install Specific Packages and Dependencies
       run: |
         cd immortalwrt
-        ./scripts/feeds install libpcre
-        ./scripts/feeds install kmod-crypto-md5
-        ./scripts/feeds install kmod-nf-conntrack
-        ./scripts/feeds install kmod-nf-conntrack6
-        ./scripts/feeds install kmod-jool-netfilter
+        ./scripts/feeds update packages
+        ./scripts/feeds install -a -p packages
 
     - name: Enable All KMODs and Packages
       run: |
