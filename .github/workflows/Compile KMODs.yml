@@ -16,7 +16,7 @@ jobs:
     - name: Set up environment
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential wget zstd
+        sudo apt-get install -y build-essential wget zstd libncurses5-dev gawk git gettext libssl-dev xsltproc rsync unzip
 
     - name: Download SDK
       run: |
@@ -51,14 +51,19 @@ jobs:
           make defconfig
         fi
 
-    - name: Enable All KMODs
+    - name: Enable All KMODs and Packages
       run: |
         cd sdk
         # Enable all KMODs in the configuration
         sed -i 's/# CONFIG_PACKAGE_kmod-.* is not set/CONFIG_PACKAGE_kmod-*=m/g' .config
-
         # Enable all packages (make sure to add any other relevant patterns for your packages)
         sed -i 's/# CONFIG_PACKAGE_.* is not set/CONFIG_PACKAGE_*=m/g' .config
+
+    - name: Install Dependencies for Packages
+      run: |
+        cd sdk
+        ./scripts/feeds update -a
+        ./scripts/feeds install -a
 
     - name: Build KMODs
       run: |
