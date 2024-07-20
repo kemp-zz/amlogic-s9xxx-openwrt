@@ -1,5 +1,3 @@
-
-
 name: DCKV2
 
 on:
@@ -36,7 +34,6 @@ on:
           - 6.6.y
           - 6.1.y_6.6.y
           - 5.15.y_5.10.y
-
       auto_kernel:
         description: "Auto use the latest kernel"
         required: false
@@ -105,6 +102,12 @@ jobs:
                               python2.7 python3 python3-pip python3-ply python3-docutils python3-pyelftools qemu-utils \
                               re2c rsync scons squashfs-tools subversion swig texinfo uglifyjs upx-ucl unzip vim wget \
                               xmlto xxd zlib1g-dev
+
+      - name: Update Meson
+        run: |
+          sudo pip3 install --upgrade meson
+          meson --version
+
       - name: Initialization environment
         id: init
         env:
@@ -125,7 +128,6 @@ jobs:
           sudo rm -rf ~/{.cargo,.dotnet,.rustup}
           sudo timedatectl set-timezone "${TZ}"
           echo "status=success" >> ${GITHUB_OUTPUT}
-
       - name: Create simulated physical disk
         run: |
           mnt_size=$(expr $(df -h /mnt | tail -1 | awk '{print $4}' | sed 's/[[:alpha:]]//g' | sed 's/\..*//') - 1)
@@ -143,7 +145,6 @@ jobs:
           sudo mount /dev/github/runner /builder
           sudo chown -R runner.runner /builder
           df -Th
-
       - name: Clone source code [ ${{ inputs.source_branch }} ]
         id: codes
         working-directory: /builder
@@ -166,12 +167,10 @@ jobs:
               echo "Unknown source code repository."
               exit 1
           fi
-
           # Clone source code
           git clone -q --single-branch --depth=1 --branch=${REPO_BRANCH} ${REPO_URL} openwrt
           ln -sf /builder/openwrt ${GITHUB_WORKSPACE}/openwrt
           ln -sf /builder/openwrt /home/runner/work/_actions/ophub/amlogic-s9xxx-openwrt/main/openwrt
-
           # Set output information
           echo "build_tag=OpenWrt_${TAGS_NAME}_${{ inputs.openwrt_storage }}_$(date +"%Y.%m")" >> ${GITHUB_OUTPUT}
           echo -e "REPO_URL: [ ${REPO_URL} ]\nREPO_BRANCH: [ ${REPO_BRANCH} ]\nTAGS_NAME: [ ${TAGS_NAME} ]"
@@ -179,14 +178,12 @@ jobs:
           echo "REPO_URL=${REPO_URL}" >> ${GITHUB_OUTPUT}
           echo "TAGS_NAME=${TAGS_NAME}" >> ${GITHUB_OUTPUT}
           echo "status=success" >> ${GITHUB_OUTPUT}
-
       - name: Load custom feeds
         run: |
           [[ -f "${FEEDS_CONF}" ]] && cp -f ${FEEDS_CONF} openwrt/feeds.conf.default
           chmod +x ${DIY_P1_SH}
           cd openwrt/
           ${GITHUB_WORKSPACE}/${DIY_P1_SH}
-
       - name: Update feeds
         run: cd openwrt/ && ./scripts/feeds update -a
 
@@ -200,7 +197,6 @@ jobs:
           chmod +x ${DIY_P2_SH}
           cd openwrt/
           ${GITHUB_WORKSPACE}/${DIY_P2_SH}
-
       - name: Customize configuration for kmods
         run: |
           cd openwrt/
@@ -210,7 +206,6 @@ jobs:
           echo -e "CONFIG_PACKAGE_kmod-nf-conntrack=y" >> .config
           echo -e "CONFIG_PACKAGE_kmod-nf-conntrack6=y" >> .config
           make defconfig
-
       - name: Compile specific kmods and dependencies
         run: |
           cd openwrt/
@@ -220,7 +215,6 @@ jobs:
           make package/compile V=s || make package/compile V=s
           make kernel_modules V=s || make kernel_modules V=s
           echo "status=success" >> ${GITHUB_OUTPUT}
-
       - name: Clear server space
         id: clean
         if: ${{ steps.compile.outputs.status }} == 'success' && !cancelled()
@@ -231,15 +225,12 @@ jobs:
           cp -f bin/targets/*/*/*rootfs.tar.gz output/
           cp -f .config output/config
           rm -rf $(ls . | grep -v "^output$" | xargs) 2>/dev/null
-
           # Generate sha256sum file
           cd output/
           for file in *; do [[ ! -d "${file}" ]] && sha256sum "${file}" >"${file}.sha"; done
-
           # Set output information
           df -hT ${PWD}
           echo "status=success" >> ${GITHUB_OUTPUT}
-
       - name: Upload OpenWrt to Release
         uses: ncipollo/release-action@main
         if: ${{ steps.clean.outputs.status }} == 'success' && !cancelled()
@@ -291,19 +282,19 @@ jobs:
         if: failure()
         run: |
           mkdir -p $GITHUB_WORKSPACE/logs
-          cp openwrt/build_dir/target-*/linux-*/linux-*/.config $GITHUB_WORKSPACE/logs/
-          cp openwrt/build_dir/target-*/linux-*/linux-*/Module.symvers $GITHUB_WORKSPACE/logs/
-          cp openwrt/build_dir/target-*/linux-*/linux-*/.modules $GITHUB_WORKSPACE/logs/
-          cp openwrt/build_dir/target-*/linux-*/linux-*/.log $GITHUB_WORKSPACE/logs/
-          cp openwrt/build_dir/target-*/linux-*/linux-*/build.log $GITHUB_WORKSPACE/logs/
-          cp openwrt/tmp/.packageinfo $GITHUB_WORKSPACE/logs/
-        continue-on-error: true
+          cp openwrt/build_dir/target-*/linux-*/linux-*/.config $GITHUB_WORKSPACE/logs/ || true
+          cp openwrt/build_dir/target-*/linux-*/linux-*/Module.symvers $GITHUB_WORKSPACE/logs/ || true
+          cp openwrt/build_dir/target-*/linux-*/linux-*/.modules $GITHUB_WORKSPACE/logs/ || true
+          cp openwrt/build_dir/target-*/linux-*/linux-*/.log $GITHUB_WORKSPACE/logs/ || true
+          cp openwrt/build_dir/target-*/linux-*/linux-*/build.log $GITHUB_WORKSPACE/logs/ || true
+          cp openwrt/tmp/.packageinfo $GITHUB_WORKSPACE/logs/ || true
+          continue-on-error: true
 
       - name: Upload logs
         if: failure()
         uses: actions/upload-artifact@v2
         with:
-          name: Build-logs
-          path: $GITHUB_WORKSPACE/logs/
+           name: Build-logs
+           path: $GITHUB_WORKSPACE/logs/
+           if-no-files-found: warn
 
-     
