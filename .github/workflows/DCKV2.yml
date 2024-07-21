@@ -86,48 +86,40 @@ jobs:
     runs-on: ubuntu-22.04
     if: ${{ github.event.repository.owner.id }} == ${{ github.event.sender.id }}
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+steps:
+  - name: Checkout
+    uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential \
-                                bzip2 ccache clang cmake cpio curl device-tree-compiler ecj fastjar flex gawk gettext \
-                                gcc-multilib g++-multilib git gnutls-dev gperf haveged help2man intltool lib32gcc-s1 \
-                                libc6-dev-i386 libelf-dev libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev \
-                                libncurses5-dev libncursesw5 libncursesw5-dev libpython3-dev libreadline-dev libssl-dev \
-                                libtool lld llvm lrzsz mkisofs msmtp nano ninja-build p7zip p7zip-full patch pkgconf \
-                                python2.7 python3 python3-pip python3-ply python3-docutils python3-pyelftools qemu-utils \
-                                re2c rsync scons squashfs-tools subversion swig texinfo uglifyjs upx-ucl unzip vim wget \
-                                xmlto xxd zlib1g-dev
+  - name: Install dependencies
+    run: |
+      sudo apt-get update
+      sudo apt-get install -y ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential \
+                        bzip2 ccache clang cmake cpio curl device-tree-compiler ecj fastjar flex gawk gettext \
+                        gcc-multilib g++-multilib git gnutls-dev gperf haveged help2man intltool lib32gcc-s1 \
+                        libc6-dev-i386 libelf-dev libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev \
+                        libncurses5-dev libncursesw5 libncursesw5-dev libpython3-dev libreadline-dev libssl-dev \
+                        libtool lld llvm lrzsz mkisofs msmtp nano ninja-build p7zip p7zip-full patch pkgconf \
+                        python2.7 python3 python3-pip python3-ply python3-docutils python3-pyelftools qemu-utils \
+                        re2c rsync scons squashfs-tools subversion swig texinfo uglifyjs upx-ucl unzip vim wget \
+                        xmlto xxd zlib1g-dev
 
-      - name: Set up Python environment
-        run: |
-          python3 -m venv venv
-          source venv/bin/activate
-          pip install --upgrade pip
-          pip install --upgrade meson          
+  - name: Set up Python environment
+    run: |
+      python3 -m venv venv
+      source venv/bin/activate
+      pip install --upgrade pip
+      pip install --upgrade meson
 
-      - name: Ensure directories exist       
-        run: |
-          mkdir -p /builder/openwrt/build_dir/target-aarch64_generic_musl/glib-2.80.3/
-          mkdir -p /builder/openwrt/build_dir/target-aarch64_generic_musl/glib-2.80.3/openwrt-build
+  - name: Verify Meson version
+    run: |
+      source venv/bin/activate
+      meson --version
 
-      - name: Verify directories
-        run: |
-          echo "Checking source directory:"
-          ls -l /builder/openwrt/build_dir/target-aarch64_generic_musl/glib-2.80.3/
-          echo "Checking build directory:"
-          ls -l /builder/openwrt/build_dir/target-aarch64_generic_musl/glib-2.80.3/openwrt-build
+  - name: Build
+    run: |
+      source venv/bin/activate
+      /builder/openwrt/staging_dir/host/bin/meson setup --buildtype plain --native-file /builder/openwrt/build_dir/target-aarch64_generic_musl/glib-2.80.3/openwrt-native.txt --cross-file /builder/openwrt/build_dir/target-aarch64_generic_musl/glib-2.80.3/openwrt-cross.txt -Dglib_debug=disabled -Dlibmount=disabled -Dselinux=disabled -Dglib_assert=false -Dtests=false -Dintrospection=disabled -Druntime_dir=/var/run -Dxattr=true -Db_lto=true -Ddefault_library=both -Dnls=disabled /builder/openwrt/build_dir/target-aarch64_generic_musl/glib-2.80.3/openwrt-build /builder/openwrt/build_dir/target-aarch64_generic_musl/glib-2.80.3/openwrt-build/..
 
-      - name: Build           
-        run: |
-          source venv/bin/activate
-          meson setup --buildtype plain --native-file /builder/openwrt/build_dir/target-aarch64_generic_musl/glib-2.80.3/openwrt-native.txt --cross-file /builder/openwrt/build_dir/target-aarch64_generic_musl/glib-2.80.3/openwrt-cross.txt -Dglib_debug=disabled -Dlibmount=disabled -Dselinux=disabled -Dglib_assert=false -Dtests=false -Dintrospection=disabled -Druntime_dir=/var/run -Dxattr=true -Db_lto=true -Ddefault_library=both -Dnls=disabled /builder/openwrt/build_dir/target-aarch64_generic_musl/glib-2.80.3/openwrt-build /builder/openwrt/build_dir/target-aarch64_generic_musl/glib-2.80.3/openwrt-build/..
-
-      
 
       - name: Initialization environment
         id: init
