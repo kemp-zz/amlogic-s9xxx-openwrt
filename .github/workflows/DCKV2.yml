@@ -115,7 +115,10 @@ jobs:
          source venv/bin/activate
          meson --version
 
-
+      - name: Build
+        run: |
+          source venv/bin/activate/builder/openwrt/staging_dir/host/bin/meson setup --buildtype plain --native-file /builder/openwrt/build_dir/target-aarch64_generic_musl/glib-2.80.3/openwrt-native.txt --cross-file /builder/openwrt/build_dir/target-aarch64_generic_musl/glib-2.80.3/openwrt-cross.txt -Dglib_debug=disabled -Dlibmount=disabled -Dselinux=disabled -Dglib_assert=false -Dtests=false -Dintrospection=disabled -Druntime_dir=/var/run -Dxattr=true -Db_lto=true -Ddefault_library=both -Dnls=disabled /builder/openwrt/build_dir/target-aarch64_generic_musl/glib-2.80.3/openwrt-build /builder/openwrt/build_dir/target-aarch64_generic_musl/glib-2.80.3/openwrt-build/..
+          
 
       - name: Initialization environment
         id: init
