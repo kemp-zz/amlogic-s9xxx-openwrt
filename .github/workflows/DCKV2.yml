@@ -102,11 +102,12 @@ jobs:
                                 re2c rsync scons squashfs-tools subversion swig texinfo uglifyjs upx-ucl unzip vim wget \
                                 xmlto xxd zlib1g-dev
 
+
       - name: Install pipx
         run: python3 -m pip install --user pipx
 
       - name: Add pipx to PATH
-        run: echo "::add-path::$(python3 -m site --user-base)/bin"
+        run: echo "$HOME/.local/bin" >> $GITHUB_ENV
 
       - name: Install latest Meson using pipx
         run: pipx install meson
