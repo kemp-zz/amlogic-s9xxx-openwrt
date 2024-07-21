@@ -107,7 +107,7 @@ jobs:
         run: python3 -m pip install --user pipx
 
       - name: Add pipx to PATH
-        run: echo "$HOME/.local/bin" >> $GITHUB_ENV
+        run: echo "PATH=$HOME/.local/bin:$PATH" >> $GITHUB_ENV
 
       - name: Install latest Meson using pipx
         run: pipx install meson
