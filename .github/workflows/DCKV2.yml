@@ -86,14 +86,14 @@ jobs:
     runs-on: ubuntu-22.04
     if: ${{ github.event.repository.owner.id }} == ${{ github.event.sender.id }}
 
-steps:
-  - name: Checkout
-    uses: actions/checkout@v4
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-  - name: Install dependencies
-    run: |
-      sudo apt-get update
-      sudo apt-get install -y ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential \
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential \
                         bzip2 ccache clang cmake cpio curl device-tree-compiler ecj fastjar flex gawk gettext \
                         gcc-multilib g++-multilib git gnutls-dev gperf haveged help2man intltool lib32gcc-s1 \
                         libc6-dev-i386 libelf-dev libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev \
@@ -103,23 +103,17 @@ steps:
                         re2c rsync scons squashfs-tools subversion swig texinfo uglifyjs upx-ucl unzip vim wget \
                         xmlto xxd zlib1g-dev
 
-  - name: Set up Python environment
-    run: |
-      python3 -m venv venv
-      source venv/bin/activate
-      pip install --upgrade pip
-      pip install --upgrade meson
+      - name: Set up Python environment
+        run: |
+          python3 -m venv venv
+          source venv/bin/activate
+          pip install --upgrade pip
+          pip install --upgrade meson
 
-  - name: Verify Meson version
-    run: |
-      source venv/bin/activate
-      meson --version
-
-  - name: Build
-    run: |
-      source venv/bin/activate
-      /builder/openwrt/staging_dir/host/bin/meson setup --buildtype plain --native-file /builder/openwrt/build_dir/target-aarch64_generic_musl/glib-2.80.3/openwrt-native.txt --cross-file /builder/openwrt/build_dir/target-aarch64_generic_musl/glib-2.80.3/openwrt-cross.txt -Dglib_debug=disabled -Dlibmount=disabled -Dselinux=disabled -Dglib_assert=false -Dtests=false -Dintrospection=disabled -Druntime_dir=/var/run -Dxattr=true -Db_lto=true -Ddefault_library=both -Dnls=disabled /builder/openwrt/build_dir/target-aarch64_generic_musl/glib-2.80.3/openwrt-build /builder/openwrt/build_dir/target-aarch64_generic_musl/glib-2.80.3/openwrt-build/..
-
+      - name: Verify Meson version
+        run: |
+          source venv/bin/activate
+          meson --version
 
       - name: Initialization environment
         id: init
@@ -193,7 +187,6 @@ steps:
           echo "REPO_URL=${REPO_URL}" >> ${GITHUB_OUTPUT}
           echo "TAGS_NAME=${TAGS_NAME}" >> ${GITHUB_OUTPUT}
           echo "status=success" >> ${GITHUB_OUTPUT}
-
       - name: Load custom feeds
         run: |
           [[ -f "${FEEDS_CONF}" ]] && cp -f ${FEEDS_CONF} openwrt/feeds.conf.default
@@ -224,15 +217,19 @@ steps:
           echo -e "CONFIG_PACKAGE_kmod-nf-conntrack=y" >> .config
           echo -e "CONFIG_PACKAGE_kmod-nf-conntrack6=y" >> .config
           make defconfig
-
-      - name: Compile specific kmods and dependencies
+     
+     - name: Build OpenWrt
+        id: compile
         run: |
+          source venv/bin/activate
           cd openwrt/
           make download -j8
           echo -e "$(nproc) thread compile"
           make -j$(($(nproc) + 1)) V=s || make -j1 || make -j1 V=s
           make package/compile V=s || make package/compile V=s
           make kernel_modules V=s || make kernel_modules V=s
+          # 在这里添加你的 meson 命令，例如：
+          # meson setup <meson_options> <source_dir> <build_dir>
           echo "status=success" >> ${GITHUB_OUTPUT}
 
       - name: Clear server space
@@ -285,7 +282,6 @@ steps:
           removeArtifacts: false
           replacesArtifacts: true
           token: ${{ secrets.GITHUB_TOKEN }}
-
           body: |
             ### OpenWrt Image information
             - Default IP: 192.168.1.1
