@@ -32,8 +32,6 @@ on:
           - 5.15.y
           - 6.1.100
           - 6.6.y
-          - 6.1.y_6.6.y
-          - 5.15.y_5.10.y
       auto_kernel:
         description: "Auto use the latest kernel"
         required: false
@@ -197,6 +195,8 @@ jobs:
     - name: Save Kernel Config for kmods
       run: |
         cd openwrt/
+        # Ensure kernel version is set correctly
+        sed -i "s/CONFIG_KERNEL_VERSION=.*/CONFIG_KERNEL_VERSION=${{ inputs.openwrt_kernel }}/" .config
         make kernel_menuconfig CONFIG_TARGET=subtarget
         cp build_dir/target-*/linux-*/linux-*/.config .config-kernel
         echo "Kernel config saved for kmods vermagic matching."
@@ -274,4 +274,5 @@ jobs:
       run: |
         cd openwrt/
         make -j1 V=s toolchain/binutils/compile
+
 
