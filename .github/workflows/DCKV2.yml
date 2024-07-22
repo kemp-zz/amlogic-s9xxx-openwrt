@@ -24,16 +24,14 @@ on:
       openwrt_kernel:
         description: "Select kernel version"
         required: false
-        default: "6.1.y"
+        default: "6.1.100"
         type: choice
         options:
           - 5.4.y
           - 5.10.y
           - 5.15.y
-          - 6.1.y
+          - 6.1.100
           - 6.6.y
-          - 6.1.y_6.6.y
-          - 5.15.y_5.10.y
       auto_kernel:
         description: "Auto use the latest kernel"
         required: false
@@ -86,227 +84,173 @@ jobs:
     runs-on: ubuntu-22.04
     if: ${{ github.event.repository.owner.id }} == ${{ github.event.sender.id }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+    - name: Checkout
+      uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential \
-                                bzip2 ccache clang cmake cpio curl device-tree-compiler ecj fastjar flex gawk gettext \
-                                gcc-multilib g++-multilib git gnutls-dev gperf haveged help2man intltool lib32gcc-s1 \
-                                libc6-dev-i386 libelf-dev libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev \
-                                libncurses5-dev libncursesw5 libncursesw5-dev libpython3-dev libreadline-dev libssl-dev \
-                                libtool lld llvm lrzsz mkisofs msmtp nano ninja-build p7zip p7zip-full patch pkgconf \
-                                python2.7 python3 python3-pip python3-ply python3-docutils python3-pyelftools qemu-utils \
-                                re2c rsync scons squashfs-tools subversion swig texinfo uglifyjs upx-ucl unzip vim wget \
-                                xmlto xxd zlib1g-dev
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential \
+                      bzip2 ccache clang cmake cpio curl device-tree-compiler ecj fastjar flex gawk gettext \
+                      gcc-multilib g++-multilib git gnutls-dev gperf haveged help2man intltool lib32gcc-s1 \
+                      libc6-dev-i386 libelf-dev libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev \
+                      libncurses5-dev libncursesw5 libncursesw5-dev libpython3-dev libreadline-dev libssl-dev \
+                      libtool lld llvm lrzsz mkisofs msmtp nano ninja-build p7zip p7zip-full patch pkgconf \
+                      python2.7 python3 python3-pip python3-ply python3-docutils python3-pyelftools qemu-utils \
+                      re2c rsync scons squashfs-tools subversion swig texinfo uglifyjs upx-ucl unzip vim wget \
+                      xmlto xxd zlib1g-dev coreutils
+    - name: Initialization environment
+      id: init
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        docker rmi $(docker images -q) 2>/dev/null
+        [[ -n "${AGENT_TOOLSDIRECTORY}" ]] && sudo rm -rf "${AGENT_TOOLSDIRECTORY}"
+        sudo rm -rf /usr/share/dotnet /etc/apt/sources.list.d /usr/local/lib/android 2>/dev/null
+        sudo swapoff -a
+        sudo rm -f /swapfile /mnt/swapfile
+        sudo -E apt-get -y update
+        sudo -E apt-get -y purge azure-cli ghc* zulu* llvm* firefox google* dotnet* powershell openjdk* mongodb* moby* || true
+        sudo -E apt-get -y install $(curl -fsSL https://is.gd/depend_ubuntu2204_openwrt)
+        sudo -E systemctl daemon-reload
+        sudo -E apt-get -y autoremove --purge
+        sudo -E apt-get clean
+        sudo sed -i '/NVM_DIR/d;/skel/d' /root/{.bashrc,.profile}
+        sudo rm -rf ~/{.cargo,.dotnet,.rustup}
+        sudo timedatectl set-timezone "${TZ}"
+        echo "status=success" >> ${GITHUB_OUTPUT}
+    - name: Create simulated physical disk
+      run: |
+        mnt_size=$(expr $(df -h /mnt | tail -1 | awk '{print $4}' | sed 's/[[:alpha:]]//g' | sed 's/\..*//') - 1)
+        root_size=$(expr $(df -h / | tail -1 | awk '{print $4}' | sed 's/[[:alpha:]]//g' | sed 's/\..*//') - 4)
+        sudo truncate -s "${mnt_size}"G /mnt/mnt.img
+        sudo truncate -s "${root_size}"G /root.img
+        sudo losetup /dev/loop6 /mnt/mnt.img
+        sudo losetup /dev/loop7 /root.img
+        sudo pvcreate /dev/loop6
+        sudo pvcreate /dev/loop7
+        sudo vgcreate github /dev/loop6 /dev/loop7
+        sudo lvcreate -n runner -l 100%FREE github
+        sudo mkfs.xfs /dev/github/runner
+        sudo mkdir -p /builder
+        sudo mount /dev/github/runner /builder
+        sudo chown -R runner.runner /builder
+        df -Th
+    - name: Clone source code [ ${{ inputs.source_branch }} ]
+      id: codes
+      working-directory: /builder
+      if: ${{ steps.init.outputs.status }} == 'success' && !cancelled()
+      run: |
+        # Set up compilation source code
+        if [[ "${{ inputs.source_branch }}" == "openwrt-main" ]]; then
+            REPO_URL="https://github.com/openwrt/openwrt"
+            REPO_BRANCH="main"
+            TAGS_NAME="official"
+        elif [[ "${{ inputs.source_branch }}" == "lede-master" ]]; then
+            REPO_URL="https://github.com/coolsnowwolf/lede"
+            REPO_BRANCH="master"
+            TAGS_NAME="lede"
+        elif [[ "${{ inputs.source_branch }}" == "immortalwrt-23.05" ]]; then
+            REPO_URL="https://github.com/immortalwrt/immortalwrt"
+            REPO_BRANCH="openwrt-23.05"
+            TAGS_NAME="immortalwrt-23.05"
+        else
+            echo "Unknown source code repository."
+            exit 1
+        fi
+        # Clone source code
+        git clone -q --single-branch --depth=1 --branch=${REPO_BRANCH} ${REPO_URL} openwrt
+        ln -sf /builder/openwrt ${GITHUB_WORKSPACE}/openwrt
+        ln -sf /builder/openwrt /home/runner/work/_actions/ophub/amlogic-s9xxx-openwrt/main/openwrt
+        # Set output information
+        echo "build_tag=OpenWrt_${TAGS_NAME}_${{ inputs.openwrt_storage }}_$(date +"%Y.%m")" >> ${GITHUB_OUTPUT}
+        echo -e "REPO_URL: [ ${REPO_URL} ]\nREPO_BRANCH: [ ${REPO_BRANCH} ]\nTAGS_NAME: [ ${TAGS_NAME} ]"
+        df -hT ${PWD}
+        echo "REPO_URL=${REPO_URL}" >> ${GITHUB_OUTPUT}
+        echo "TAGS_NAME=${TAGS_NAME}" >> ${GITHUB_OUTPUT}
+        echo "status=success" >> ${GITHUB_OUTPUT}
+    - name: Load custom feeds
+      run: |
+        [[ -f "${FEEDS_CONF}" ]] && cp -f ${FEEDS_CONF} openwrt/feeds.conf.default
+        chmod +x ${DIY_P1_SH}
+        cd openwrt/
+        ${GITHUB_WORKSPACE}/${DIY_P1_SH}
+    - name: Update feeds
+      run: cd openwrt/ && ./scripts/feeds update -a
 
+    - name: Install feeds
+      run: cd openwrt/ && ./scripts/feeds install -a
 
-      - name: Install pipx
-        run: python3 -m pip install --user pipx
+    - name: Load custom configuration
+      run: |
+        [[ -d "files" ]] && mv -f files openwrt/files
+        [[ -e "${CONFIG_FILE}" ]] && cp -f ${CONFIG_FILE} openwrt/.config
+        chmod +x ${DIY_P2_SH}
+        cd openwrt/
+        ${GITHUB_WORKSPACE}/${DIY_P2_SH}
+    - name: Check Kernel Version
+      id: check_kernel
+      run: |
+        cd openwrt/
+        
+        # Ensure .config file exists
+        if [[ ! -f .config ]]; then
+          echo ".config file not found. Aborting."
+          exit 1
+        fi
+        
+        # Extract kernel version from .config
+        KERNEL_VERSION=$(grep '^CONFIG_KERNEL_VERSION=' .config | cut -d= -f2 | tr -d '"')
+        
+        # Debugging: Print extracted kernel version
+        echo "Extracted Kernel Version: ${KERNEL_VERSION}"
+        
+        if [[ "${KERNEL_VERSION}" != "${{ inputs.openwrt_kernel }}" ]]; then
+          echo "Kernel version mismatch: expected ${{ inputs.openwrt_kernel }}, found ${KERNEL_VERSION}. Aborting."
+          exit 1
+        fi
+        
+        echo "Kernel version ${KERNEL_VERSION} matches expected version ${{ inputs.openwrt_kernel }}."
+        echo "status=success" >> ${GITHUB_OUTPUT}
 
-      - name: Add pipx to PATH
-        run: echo "PATH=$HOME/.local/bin:$PATH" >> $GITHUB_ENV
+    - name: Compile kmods with saved Kernel Config
+      if: ${{ steps.check_kernel.outputs.status }} == 'success' && !cancelled()
+      run: |
+        cd openwrt/
+        
+        # Copy saved kernel config for kmods
+        cp ../output/config-kernel build_dir/target-*/linux-*/linux-*/.config
+        
+        # Prepare and compile kernel modules
+        make kernel_prepare
+        make package/kernel/linux/compile V=s
+        
+        mkdir -p ../output/kmods
+        cp build_dir/target-*/linux-*/linux-*/.config ../output/kmods/
+        
+        echo "Kernel modules compiled and saved."
 
-      - name: Install latest Meson using pipx
-        run: pipx install meson
+    - name: Package OpenWrt and kmods
+      if: ${{ steps.check_kernel.outputs.status }} == 'success' && !cancelled()
+      run: |
+        cd openwrt/
+        make -j$(nproc) V=s
+        
+        mkdir -p ../output
+        cp bin/targets/*/*.img ../output/
+        cp bin/targets/*/*.gz ../output/
+        cp ../output/kmods/* ../output/
+        ls -lh ../output
 
-      - name: Ensure directories exist
-        run: |
-          sudo mkdir -p /builder/openwrt/build_dir/target-aarch64_generic_musl/glib-2.80.3/
-          sudo mkdir -p /builder/openwrt/build_dir/target-aarch64_generic_musl/glib-2.80.3/openwrt-build
-
-      - name: Verify directories
-        run: |
-          echo "Checking source directory:"
-          sudo ls -l /builder/openwrt/build_dir/target-aarch64_generic_musl/glib-2.80.3/
-          echo "Checking build directory:"
-          sudo ls -l /builder/openwrt/build_dir/target-aarch64_generic_musl/glib-2.80.3/openwrt-build
-
-      - name: Initialization environment
-        id: init
-        env:
-          DEBIAN_FRONTEND: noninteractive
-        run: |
-          sudo docker rmi $(sudo docker images -q) 2>/dev/null || true
-          sudo apt-get -y update
-          sudo apt-get -y autoremove --purge
-          sudo apt-get clean
-          sudo timedatectl set-timezone "${TZ}"
-          echo "status=success" >> ${GITHUB_OUTPUT}
-
-      - name: Create simulated physical disk
-        run: |
-          mnt_size=$(expr $(df -h /mnt | tail -1 | awk '{print $4}' | sed 's/[[:alpha:]]//g' | sed 's/\..*//') - 1)
-          root_size=$(expr $(df -h / | tail -1 | awk '{print $4}' | sed 's/[[:alpha:]]//g' | sed 's/\..*//') - 4)
-          sudo truncate -s "${mnt_size}"G /mnt/mnt.img
-          sudo truncate -s "${root_size}"G /root.img
-          sudo losetup /dev/loop6 /mnt/mnt.img
-          sudo losetup /dev/loop7 /root.img
-          sudo pvcreate /dev/loop6
-          sudo pvcreate /dev/loop7
-          sudo vgcreate github /dev/loop6 /dev/loop7
-          sudo lvcreate -n runner -l 100%FREE github
-          sudo mkfs.xfs /dev/github/runner
-          sudo mkdir -p /builder
-          sudo mount /dev/github/runner /builder
-          sudo chown -R runner.runner /builder
-          df -Th
-
-      - name: Clone source code [ ${{ inputs.source_branch }} ]
-        id: codes
-        working-directory: /builder
-        if: ${{ steps.init.outputs.status }} == 'success' && !cancelled()
-        run: |
-          # Set up compilation source code
-          if [[ "${{ inputs.source_branch }}" == *"openwrt"* ]]; then
-              REPO_URL="https://github.com/openwrt/openwrt"
-              REPO_BRANCH="main"
-              TAGS_NAME="official"
-          elif [[ "${{ inputs.source_branch }}" == *"lede"* ]]; then
-              REPO_URL="https://github.com/coolsnowwolf/lede"
-              REPO_BRANCH="master"
-              TAGS_NAME="lede"
-          elif [[ "${{ inputs.source_branch }}" == *"immortalwrt-23.05"* ]]; then
-              REPO_URL="https://github.com/immortalwrt/immortalwrt"
-              REPO_BRANCH="openwrt-23.05"
-              TAGS_NAME="immortalwrt-23.05"
-          else
-              echo "Unknown source code repository."
-              exit 1
-          fi
-          # Clone source code
-          git clone -q --single-branch --depth=1 --branch=${REPO_BRANCH} ${REPO_URL} openwrt
-          ln -sf /builder/openwrt ${GITHUB_WORKSPACE}/openwrt
-          ln -sf /builder/openwrt /home/runner/work/_actions/ophub/amlogic-s9xxx-openwrt/main/openwrt
-          # Set output information
-          echo "build_tag=OpenWrt_${TAGS_NAME}_${{ inputs.openwrt_storage }}_$(date +"%Y.%m")" >> ${GITHUB_OUTPUT}
-          echo -e "REPO_URL: [ ${REPO_URL} ]\nREPO_BRANCH: [ ${REPO_BRANCH} ]\nTAGS_NAME: [ ${TAGS_NAME} ]"
-          df -hT ${PWD}
-          echo "REPO_URL=${REPO_URL}" >> ${GITHUB_OUTPUT}
-          echo "TAGS_NAME=${TAGS_NAME}" >> ${GITHUB_OUTPUT}
-          echo "status=success" >> ${GITHUB_OUTPUT}
-      - name: Load custom feeds
-        run: |
-          [[ -f "${FEEDS_CONF}" ]] && cp -f ${FEEDS_CONF} openwrt/feeds.conf.default
-          chmod +x ${DIY_P1_SH}
-          cd openwrt/
-          ${GITHUB_WORKSPACE}/${DIY_P1_SH}
-
-      - name: Update feeds
-        run: cd openwrt/ && ./scripts/feeds update -a
-
-      - name: Install feeds
-        run: cd openwrt/ && ./scripts/feeds install -a
-
-      - name: Load custom configuration
-        run: |
-          [[ -d "files" ]] && mv -f files openwrt/files
-          [[ -e "${CONFIG_FILE}" ]] && cp -f ${CONFIG_FILE} openwrt/.config
-          chmod +x ${DIY_P2_SH}
-          cd openwrt/
-          ${GITHUB_WORKSPACE}/${DIY_P2_SH}
-
-      - name: Customize configuration for kmods
-        run: |
-          cd openwrt/
-          # Enable required kmods and dependencies
-          echo -e "\nCONFIG_PACKAGE_kmod-jool-netfilter=y" >> .config
-          echo -e "CONFIG_PACKAGE_kmod-crypto-md5=y" >> .config
-          echo -e "CONFIG_PACKAGE_kmod-nf-conntrack=y" >> .config
-          echo -e "CONFIG_PACKAGE_kmod-nf-conntrack6=y" >> .config
-          make defconfig
-     
-      - name: Compile the OpenWrt
-        id: compile
-        run: |
-          cd openwrt/
-          echo -e "$(nproc) thread compile"
-          make -j$(($(nproc) + 1)) V=s || make -j1 || make -j1 V=s
-          echo "status=success" >> ${GITHUB_OUTPUT}
-
-      - name: Clear server space
-        id: clean
-        if: ${{ steps.compile.outputs.status }} == 'success' && !cancelled()
-        run: |
-          # Clean up server space
-          cd openwrt/
-          [[ -d "output" ]] || mkdir output
-          cp -f bin/targets/*/*/*rootfs.tar.gz output/
-          cp -f .config output/config
-          rm -rf $(ls . | grep -v "^output$" | xargs) 2>/dev/null
-          # Generate sha256sum file
-          cd output/
-          for file in *; do [[ ! -d "${file}" ]] && sha256sum "${file}" >"${file}.sha"; done
-          # Set output information
-          df -hT ${PWD}
-          echo "status=success" >> ${GITHUB_OUTPUT}
-
-      - name: Upload OpenWrt to Release
-        uses: ncipollo/release-action@main
-        if: ${{ steps.clean.outputs.status }} == 'success' && !cancelled()
-        with:
-          tag: ${{ steps.codes.outputs.build_tag }}
-          artifacts: openwrt/output/*
-          allowUpdates: true
-          removeArtifacts: false
-          replacesArtifacts: true
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Packaging OpenWrt
-        if: ${{ steps.clean.outputs.status }} == 'success' && !cancelled()
-        uses: ophub/amlogic-s9xxx-openwrt@main
-        with:
-          openwrt_path: openwrt/output/*rootfs.tar.gz
-          openwrt_board: ${{ inputs.openwrt_board }}
-          openwrt_kernel: ${{ inputs.openwrt_kernel }}
-          auto_kernel: ${{ inputs.auto_kernel }}
-          kernel_repo: ${{ inputs.kernel_repo }}
-          kernel_usage: ${{ inputs.kernel_usage }}
-          builder_name: ${{ inputs.builder_name }}
-
-      - name: Upload the packaged OpenWrt
-        uses: ncipollo/release-action@main
-        if: ${{ env.PACKAGED_STATUS }} == 'success' && !cancelled()
-        with:
-          tag: ${{ steps.codes.outputs.build_tag }}
-          artifacts: ${{ env.PACKAGED_OUTPUTPATH }}/*
-          allowUpdates: true
-          removeArtifacts: false
-          replacesArtifacts: true
-          token: ${{ secrets.GITHUB_TOKEN }}
-          body: |
-            ### OpenWrt Image information
-            - Default IP: 192.168.1.1
-            - Default username: root
-            - Default password: password
-            - Default WIFI name: OpenWrt
-            - Default WIFI password: none
-            ### Install to EMMC
-            - Login to OpenWrt → System → Amlogic Service → Install OpenWrt
-            ### OpenWrt source code
-            - [${{ steps.codes.outputs.TAGS_NAME }}](${{ steps.codes.outputs.REPO_URL }})
-            ### OpenWrt Image Verification
-            - sha256sum
-
-      - name: Save logs
-        if: failure()
-        run: |
-          mkdir -p $GITHUB_WORKSPACE/logs
-          cp openwrt/build_dir/target-*/linux-*/linux-*/.config $GITHUB_WORKSPACE/logs/ || true
-          cp openwrt/build_dir/target-*/linux-*/linux-*/Module.symvers $GITHUB_WORKSPACE/logs/ || true
-          cp openwrt/build_dir/target-*/linux-*/linux-*/.modules $GITHUB_WORKSPACE/logs/ || true
-          cp openwrt/build_dir/target-*/linux-*/linux-*/.log $GITHUB_WORKSPACE/logs/ || true
-          cp openwrt/build_dir/target-*/linux-*/linux-*/build.log $GITHUB_WORKSPACE/logs/ || true
-          cp openwrt/tmp/.packageinfo $GITHUB_WORKSPACE/logs/ || true
-          continue-on-error: true
-
-      - name: Upload logs
-        if: failure()
-        uses: actions/upload-artifact@v2
-        with:
-           name: Build-logs
-           path: $GITHUB_WORKSPACE/logs/
-           if-no-files-found: warn
-
+    - name: Upload the packaged OpenWrt and kmods
+      uses: ncipollo/release-action@main
+      if: ${{ steps.check_kernel.outputs.status }} == 'success' && !cancelled()
+      with:
+        tag: ${{ steps.codes.outputs.build_tag }}
+        artifacts: |
+          ${{ env.PACKAGED_OUTPUTPATH }}/*
+          openwrt/output/kmods/*
+        allowUpdates: true
+        removeArtifacts: false
+        replacesArtifacts: true
+        token: ${{ secrets.GITHUB_TOKEN }}
