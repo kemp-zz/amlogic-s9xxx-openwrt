@@ -186,7 +186,6 @@ jobs:
         [[ -d "files" ]] && mv -f files openwrt/files
         [[ -e "${CONFIG_FILE}" ]] && cp -f ${CONFIG_FILE} openwrt/.config
         chmod +x ${DIY_P2_SH}
-      run: |
         cd openwrt/
         ${GITHUB_WORKSPACE}/${DIY_P2_SH}
     - name: Synchronize configuration
