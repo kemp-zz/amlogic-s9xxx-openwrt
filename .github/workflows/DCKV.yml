@@ -178,11 +178,20 @@ jobs:
           chmod +x ${DIY_P1_SH}
           cd openwrt/
           ${GITHUB_WORKSPACE}/${DIY_P1_SH}
-      - name: Update feeds
-        run: cd openwrt/ && ./scripts/feeds update -a
+          
+      - name: Update feeds (Add retry logic)
+        uses: nick-fields/retry@v2
+        with:
+          timeout_minutes: 5
+          max_attempts: 3
+          command: cd openwrt/ && ./scripts/feeds update -a
 
-      - name: Install feeds
-        run: cd openwrt/ && ./scripts/feeds install -a
+      - name: Install feeds (Add retry logic)
+        uses: nick-fields/retry@v2
+        with:
+          timeout_minutes: 10
+          max_attempts: 3
+          command: cd openwrt/ && ./scripts/feeds install -a
 
       - name: Load custom configuration
         run: |
@@ -199,6 +208,7 @@ jobs:
           echo -e "$(nproc) thread compile"
           make -j$(($(nproc) + 1)) V=s || make -j1 V=s || make -j1 V=s
           echo "status=success" >> ${GITHUB_OUTPUT}
+          
       - name: Clear server space
         id: clean
         if: ${{ steps.compile.outputs.status }} == 'success' && !cancelled()
