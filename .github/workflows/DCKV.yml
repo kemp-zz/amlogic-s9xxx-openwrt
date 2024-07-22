@@ -101,7 +101,6 @@ jobs:
                       python2.7 python3 python3-pip python3-ply python3-docutils python3-pyelftools qemu-utils \
                       re2c rsync scons squashfs-tools subversion swig texinfo uglifyjs upx-ucl unzip vim wget \
                       xmlto xxd zlib1g-dev coreutils
-
     - name: Initialization environment
       id: init
       env:
@@ -122,7 +121,6 @@ jobs:
         sudo rm -rf ~/{.cargo,.dotnet,.rustup}
         sudo timedatectl set-timezone "${TZ}"
         echo "status=success" >> ${GITHUB_OUTPUT}
-
     - name: Create simulated physical disk
       run: |
         mnt_size=$(expr $(df -h /mnt | tail -1 | awk '{print $4}' | sed 's/[[:alpha:]]//g' | sed 's/\..*//') - 1)
@@ -140,22 +138,21 @@ jobs:
         sudo mount /dev/github/runner /builder
         sudo chown -R runner.runner /builder
         df -Th
-
     - name: Clone source code [ ${{ inputs.source_branch }} ]
       id: codes
       working-directory: /builder
       if: ${{ steps.init.outputs.status }} == 'success' && !cancelled()
       run: |
         # Set up compilation source code
-        if [[ "${{ inputs.source_branch }}" == *"openwrt"* ]]; then
+        if [[ "${{ inputs.source_branch }}" == "openwrt-main" ]]; then
             REPO_URL="https://github.com/openwrt/openwrt"
             REPO_BRANCH="main"
             TAGS_NAME="official"
-        elif [[ "${{ inputs.source_branch }}" == *"lede"* ]]; then
+        elif [[ "${{ inputs.source_branch }}" == "lede-master" ]]; then
             REPO_URL="https://github.com/coolsnowwolf/lede"
             REPO_BRANCH="master"
             TAGS_NAME="lede"
-        elif [[ "${{ inputs.source_branch }}" == *"immortalwrt-23.05"* ]]; then
+        elif [[ "${{ inputs.source_branch }}" == "immortalwrt-23.05" ]]; then
             REPO_URL="https://github.com/immortalwrt/immortalwrt"
             REPO_BRANCH="openwrt-23.05"
             TAGS_NAME="immortalwrt-23.05"
@@ -174,14 +171,12 @@ jobs:
         echo "REPO_URL=${REPO_URL}" >> ${GITHUB_OUTPUT}
         echo "TAGS_NAME=${TAGS_NAME}" >> ${GITHUB_OUTPUT}
         echo "status=success" >> ${GITHUB_OUTPUT}
-
     - name: Load custom feeds
       run: |
         [[ -f "${FEEDS_CONF}" ]] && cp -f ${FEEDS_CONF} openwrt/feeds.conf.default
         chmod +x ${DIY_P1_SH}
         cd openwrt/
         ${GITHUB_WORKSPACE}/${DIY_P1_SH}
-
     - name: Update feeds
       run: cd openwrt/ && ./scripts/feeds update -a
 
@@ -195,19 +190,16 @@ jobs:
         chmod +x ${DIY_P2_SH}
         cd openwrt/
         ${GITHUB_WORKSPACE}/${DIY_P2_SH}
-
     - name: Synchronize configuration
       run: |
         cd openwrt/
         make defconfig
-
     - name: Save Kernel Config for kmods
       run: |
         cd openwrt/
         make kernel_menuconfig CONFIG_TARGET=subtarget
         cp build_dir/target-*/linux-*/linux-*/.config .config-kernel
         echo "Kernel config saved for kmods vermagic matching."
-
     - name: Compile the OpenWrt
       id: compile
       run: |
@@ -215,7 +207,6 @@ jobs:
         echo -e "$(nproc) thread compile"
         make -j$(($(nproc) + 1)) V=s || make -j1 V=s || make -j1 V=s
         echo "status=success" >> ${GITHUB_OUTPUT}
-
     - name: Clear server space
       id: clean
       if: ${{ steps.compile.outputs.status }} == 'success' && !cancelled()
@@ -233,7 +224,6 @@ jobs:
         # Set output information
         df -hT ${PWD}
         echo "status=success" >> ${GITHUB_OUTPUT}
-
     - name: Upload OpenWrt to Release
       uses: ncipollo/release-action@main
       if: ${{ steps.clean.outputs.status }} == 'success' && !cancelled()
@@ -266,10 +256,9 @@ jobs:
         make package/kernel/linux/compile V=s
         mkdir -p ../output/kmods
         cp build_dir/target-*/linux-*/linux-*/.config ../output/kmods/
-
     - name: Upload the packaged OpenWrt and kmods
       uses: ncipollo/release-action@main
-      if: ${{ env.PACKAGED_STATUS }} == 'success' && !cancelled()
+      if: ${{ steps.clean.outputs.status }} == 'success' && !cancelled()
       with:
         tag: ${{ steps.codes.outputs.build_tag }}
         artifacts: |
@@ -279,23 +268,3 @@ jobs:
         removeArtifacts: false
         replacesArtifacts: true
         token: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Debugging toolchain/binutils build failure
-      if: ${{ steps.compile.outputs.status != 'success' }}
-      run: |
-        cd openwrt/
-        make -j1 V=s toolchain/binutils/compile
-
-        body: |
-            ### OpenWrt Image information
-            - Default IP: 192.168.1.1
-            - Default username: root
-            - Default password: password
-            - Default WIFI name: OpenWrt
-            - Default WIFI password: none
-            ### Install to EMMC
-            - Login to OpenWrt → System → Amlogic Service → Install OpenWrt
-            ### OpenWrt source code
-            - [${{ steps.codes.outputs.TAGS_NAME }}](${{ steps.codes.outputs.REPO_URL }})
-            ### OpenWrt Image Verification
-            - sha256sum
