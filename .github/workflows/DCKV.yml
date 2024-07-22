@@ -268,3 +268,10 @@ jobs:
         removeArtifacts: false
         replacesArtifacts: true
         token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Debugging toolchain/binutils build failure
+      if: ${{ steps.compile.outputs.status != 'success' }}
+      run: |
+        cd openwrt/
+        make -j1 V=s toolchain/binutils/compile
+
