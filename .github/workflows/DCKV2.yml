@@ -136,35 +136,37 @@ jobs:
         sudo mount /dev/github/runner /builder
         sudo chown -R runner.runner /builder
         df -Th
+        
     - name: Clone source code [ ${{ inputs.source_branch }} ]
       id: codes
       working-directory: /builder
       if: ${{ steps.init.outputs.status }} == 'success' && !cancelled()
       run: |
-        # Set up compilation source code
-        if [[ "${{ inputs.source_branch }}" == "openwrt-main" ]]; then
-            REPO_URL="https://github.com/openwrt/openwrt"
-            REPO_BRANCH="main"
-            TAGS_NAME="official"
+       # Set up compilation source code
+       if [[ "${{ inputs.source_branch }}" == "openwrt-main" ]]; then
+        REPO_URL="https://github.com/openwrt/openwrt"
+        REPO_BRANCH="main"
+        TAGS_NAME="official"
         elif [[ "${{ inputs.source_branch }}" == "lede-master" ]]; then
-            REPO_URL="https://github.com/coolsnowwolf/lede"
-            REPO_BRANCH="master"
-            TAGS_NAME="lede"
+        REPO_URL="https://github.com/coolsnowwolf/lede"
+        REPO_BRANCH="master"
+        TAGS_NAME="lede"
         elif [[ "${{ inputs.source_branch }}" == "immortalwrt-23.05" ]]; then
-            REPO_URL="https://github.com/immortalwrt/immortalwrt"
-            REPO_BRANCH="openwrt-23.05"
-            TAGS_NAME="immortalwrt-23.05"
+        REPO_URL="https://github.com/immortalwrt/immortalwrt"
+        REPO_BRANCH="openwrt-23.05"
+        TAGS_NAME="immortalwrt-23.05"
         else
-            echo "Unknown source code repository."
-            exit 1
-        fi
-        # Clone source code
-        git clone -q --single-branch --depth=1 --branch=${REPO_BRANCH} ${REPO_URL} openwrt
-        mkdir -p ${GITHUB_WORKSPACE}/openwrt
-        # Create directory if it does not exist before linking
-        mkdir -p /home/runner/work/_actions/ophub/amlogic-s9xxx-openwrt/main
-        ln -sf /builder/openwrt ${GITHUB_WORKSPACE}/openwrt
-        ln -sf /builder/openwrt /home/runner/work/_actions/ophub/amlogic-s9xxx-openwrt/main/openwrt
+        echo "Unknown source code repository."
+        exit 1
+       fi
+       # Clone source code
+       git clone -q --single-branch --depth=1 --branch=${REPO_BRANCH} ${REPO_URL} openwrt
+       # Ensure necessary directories exist before creating symbolic links
+       mkdir -p ${GITHUB_WORKSPACE}/openwrt
+       mkdir -p /home/runner/work/_actions/ophub/amlogic-s9xxx-openwrt/main
+       ln -sf /builder/openwrt ${GITHUB_WORKSPACE}/openwrt
+       ln -sf /builder/openwrt /home/runner/work/_actions/ophub/amlogic-s9xxx-openwrt/main/openwrt
+
 
     - name: Load custom feeds
       run: |
