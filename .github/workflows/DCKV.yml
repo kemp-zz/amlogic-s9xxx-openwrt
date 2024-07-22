@@ -99,6 +99,7 @@ jobs:
                       python2.7 python3 python3-pip python3-ply python3-docutils python3-pyelftools qemu-utils \
                       re2c rsync scons squashfs-tools subversion swig texinfo uglifyjs upx-ucl unzip vim wget \
                       xmlto xxd zlib1g-dev coreutils
+
     - name: Initialization environment
       id: init
       env:
@@ -119,6 +120,7 @@ jobs:
         sudo rm -rf ~/{.cargo,.dotnet,.rustup}
         sudo timedatectl set-timezone "${TZ}"
         echo "status=success" >> ${GITHUB_OUTPUT}
+
     - name: Create simulated physical disk
       run: |
         mnt_size=$(expr $(df -h /mnt | tail -1 | awk '{print $4}' | sed 's/[[:alpha:]]//g' | sed 's/\..*//') - 1)
@@ -136,6 +138,7 @@ jobs:
         sudo mount /dev/github/runner /builder
         sudo chown -R runner.runner /builder
         df -Th
+
     - name: Clone source code [ ${{ inputs.source_branch }} ]
       id: codes
       working-directory: /builder
@@ -169,12 +172,14 @@ jobs:
         echo "REPO_URL=${REPO_URL}" >> ${GITHUB_OUTPUT}
         echo "TAGS_NAME=${TAGS_NAME}" >> ${GITHUB_OUTPUT}
         echo "status=success" >> ${GITHUB_OUTPUT}
+
     - name: Load custom feeds
       run: |
         [[ -f "${FEEDS_CONF}" ]] && cp -f ${FEEDS_CONF} openwrt/feeds.conf.default
         chmod +x ${DIY_P1_SH}
         cd openwrt/
         ${GITHUB_WORKSPACE}/${DIY_P1_SH}
+
     - name: Update feeds
       run: cd openwrt/ && ./scripts/feeds update -a
 
@@ -184,32 +189,36 @@ jobs:
     - name: Load custom configuration
       run: |
         [[ -d "files" ]] && mv -f files openwrt/files
-        [[ -e "${CONFIG_FILE}" ]] && cp -f ${CONFIG_FILE} openwrt/.config
+        [[ -e "${CONFIG_FILE}" ]] &&        cp -f ${CONFIG_FILE} openwrt/.config
         chmod +x ${DIY_P2_SH}
         cd openwrt/
         ${GITHUB_WORKSPACE}/${DIY_P2_SH}
+
     - name: Synchronize configuration
       run: |
         cd openwrt/
         make defconfig
-    - name: Download and extract specific kernel version
-      run: |
-        KERNEL_URL="https://github.com/ophub/kernel/releases/download/kernel_stable/6.1.100.tar.gz"
-        KERNEL_DIR="linux-6.1.100"
-        wget -O /tmp/kernel.tar.gz $KERNEL_URL
-        mkdir -p /builder/openwrt/dl
-        tar -C /builder/openwrt/dl -xzvf /tmp/kernel.tar.gz
-        # Ensure kernel directory structure is in place
-        mkdir -p /builder/openwrt/build_dir/target-aarch64_generic_musl/linux-armsr_armv8
-        cp -r /builder/openwrt/dl/${KERNEL_DIR}/* /builder/openwrt/build_dir/target-aarch64_generic_musl/linux-armsr_armv8/
-    - name: Save Kernel Config for kmods
+
+    - name: Check Kernel Version
+      id: check_kernel
       run: |
         cd openwrt/
-        # Ensure kernel version is set correctly
-        sed -i "s/CONFIG_KERNEL_VERSION=.*/CONFIG_KERNEL_VERSION=${{ inputs.openwrt_kernel }}/" .config
-        make kernel_menuconfig CONFIG_TARGET=subtarget
+        KERNEL_VERSION=$(grep CONFIG_KERNEL_VERSION .config | cut -d= -f2)
+        if [[ "${KERNEL_VERSION}" != "${{ inputs.openwrt_kernel }}" ]]; then
+          echo "Kernel version mismatch: expected ${inputs.openwrt_kernel}, found ${KERNEL_VERSION}. Aborting."
+          exit 1
+        fi
+        echo "Kernel version ${KERNEL_VERSION} matches expected version ${inputs.openwrt_kernel}."
+        echo "status=success" >> ${GITHUB_OUTPUT}
+
+    - name: Save Kernel Config for kmods
+      if: ${{ steps.check_kernel.outputs.status }} == 'success' && !cancelled()
+      run: |
+        cd openwrt/
+        # Save kernel configuration
         cp build_dir/target-*/linux-*/linux-*/.config .config-kernel
         echo "Kernel config saved for kmods vermagic matching."
+
     - name: Compile the OpenWrt
       id: compile
       run: |
@@ -217,6 +226,7 @@ jobs:
         echo -e "$(nproc) thread compile"
         make -j$(($(nproc) + 1)) V=s || make -j1 V=s || make -j1 V=s
         echo "status=success" >> ${GITHUB_OUTPUT}
+
     - name: Clear server space
       id: clean
       if: ${{ steps.compile.outputs.status }} == 'success' && !cancelled()
@@ -234,6 +244,7 @@ jobs:
         # Set output information
         df -hT ${PWD}
         echo "status=success" >> ${GITHUB_OUTPUT}
+
     - name: Upload OpenWrt to Release
       uses: ncipollo/release-action@main
       if: ${{ steps.clean.outputs.status }} == 'success' && !cancelled()
@@ -266,6 +277,7 @@ jobs:
         make package/kernel/linux/compile V=s
         mkdir -p ../output/kmods
         cp build_dir/target-*/linux-*/linux-*/.config ../output/kmods/
+
     - name: Upload the packaged OpenWrt and kmods
       uses: ncipollo/release-action@main
       if: ${{ steps.clean.outputs.status }} == 'success' && !cancelled()
@@ -284,3 +296,4 @@ jobs:
       run: |
         cd openwrt/
         make -j1 V=s toolchain/binutils/compile
+
