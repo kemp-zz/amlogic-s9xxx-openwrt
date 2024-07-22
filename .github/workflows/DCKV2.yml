@@ -142,32 +142,35 @@ jobs:
       working-directory: /builder
       if: ${{ steps.init.outputs.status }} == 'success' && !cancelled()
       run: |
-       # Set up compilation source code
-       if [[ "${{ inputs.source_branch }}" == "openwrt-main" ]]; then
-        REPO_URL="https://github.com/openwrt/openwrt"
-        REPO_BRANCH="main"
-        TAGS_NAME="official"
+        # Set up compilation source code
+        if [[ "${{ inputs.source_branch }}" == "openwrt-main" ]]; then
+            REPO_URL="https://github.com/openwrt/openwrt"
+            REPO_BRANCH="main"
+            TAGS_NAME="official"
         elif [[ "${{ inputs.source_branch }}" == "lede-master" ]]; then
-        REPO_URL="https://github.com/coolsnowwolf/lede"
-        REPO_BRANCH="master"
-        TAGS_NAME="lede"
+            REPO_URL="https://github.com/coolsnowwolf/lede"
+            REPO_BRANCH="master"
+            TAGS_NAME="lede"
         elif [[ "${{ inputs.source_branch }}" == "immortalwrt-23.05" ]]; then
-        REPO_URL="https://github.com/immortalwrt/immortalwrt"
-        REPO_BRANCH="openwrt-23.05"
-        TAGS_NAME="immortalwrt-23.05"
+            REPO_URL="https://github.com/immortalwrt/immortalwrt"
+            REPO_BRANCH="openwrt-23.05"
+            TAGS_NAME="immortalwrt-23.05"
         else
-        echo "Unknown source code repository."
-        exit 1
-       fi
-       # Clone source code
-       git clone -q --single-branch --depth=1 --branch=${REPO_BRANCH} ${REPO_URL} openwrt
-       # Ensure necessary directories exist before creating symbolic links
-       mkdir -p ${GITHUB_WORKSPACE}/openwrt
-       mkdir -p /home/runner/work/_actions/ophub/amlogic-s9xxx-openwrt/main
-       ln -sf /builder/openwrt ${GITHUB_WORKSPACE}/openwrt
-       ln -sf /builder/openwrt /home/runner/work/_actions/ophub/amlogic-s9xxx-openwrt/main/openwrt
-
-
+            echo "Unknown source code repository."
+            exit 1
+        fi
+        # Clone source code
+        git clone -q --single-branch --depth=1 --branch=${REPO_BRANCH} ${REPO_URL} openwrt
+        # Ensure necessary directories exist before creating symbolic links
+        mkdir -p ${GITHUB_WORKSPACE}/openwrt
+        mkdir -p /home/runner/work/_actions/ophub/amlogic-s9xxx-openwrt/main
+        ln -sf /builder/openwrt ${GITHUB_WORKSPACE}/openwrt
+        ln -sf /builder/openwrt /home/runner/work/_actions/ophub/amlogic-s9xxx-openwrt/main/openwrt
+    - name: Verify cloned repository
+      run: |
+        ls -la /builder/openwrt
+        ls -la ${GITHUB_WORKSPACE}/openwrt
+        ls -la /home/runner/work/_actions/ophub/amlogic-s9xxx-openwrt/main/openwrt
     - name: Load custom feeds
       run: |
         [[ -f "${FEEDS_CONF}" ]] && cp -f ${FEEDS_CONF} openwrt/feeds.conf.default
@@ -211,7 +214,6 @@ jobs:
         
         echo "Kernel version ${KERNEL_VERSION} matches expected version ${{ inputs.openwrt_kernel }}."
         echo "status=success" >> ${GITHUB_OUTPUT}
-
     - name: Compile kmods with saved Kernel Config
       if: ${{ steps.check_kernel.outputs.status }} == 'success' && !cancelled()
       run: |
@@ -228,7 +230,6 @@ jobs:
         cp build_dir/target-*/linux-*/linux-*/.config ../output/kmods/
         
         echo "Kernel modules compiled and saved."
-
     - name: Package OpenWrt and kmods
       if: ${{ steps.check_kernel.outputs.status }} == 'success' && !cancelled()
       run: |
@@ -240,7 +241,6 @@ jobs:
         cp bin/targets/*/*.gz ../output/
         cp ../output/kmods/* ../output/
         ls -lh ../output
-
     - name: Upload the packaged OpenWrt and kmods
       uses: ncipollo/release-action@main
       if: ${{ steps.check_kernel.outputs.status }} == 'success' && !cancelled()
