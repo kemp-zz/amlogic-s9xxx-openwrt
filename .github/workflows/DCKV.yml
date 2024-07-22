@@ -192,6 +192,16 @@ jobs:
       run: |
         cd openwrt/
         make defconfig
+    - name: Download and extract specific kernel version
+      run: |
+        KERNEL_URL="https://github.com/ophub/kernel/releases/download/kernel_stable/6.1.100.tar.gz"
+        KERNEL_DIR="linux-6.1.100"
+        wget -O /tmp/kernel.tar.gz $KERNEL_URL
+        mkdir -p /builder/openwrt/dl
+        tar -C /builder/openwrt/dl -xzvf /tmp/kernel.tar.gz
+        # Ensure kernel directory structure is in place
+        mkdir -p /builder/openwrt/build_dir/target-aarch64_generic_musl/linux-armsr_armv8
+        cp -r /builder/openwrt/dl/${KERNEL_DIR}/* /builder/openwrt/build_dir/target-aarch64_generic_musl/linux-armsr_armv8/
     - name: Save Kernel Config for kmods
       run: |
         cd openwrt/
@@ -274,5 +284,3 @@ jobs:
       run: |
         cd openwrt/
         make -j1 V=s toolchain/binutils/compile
-
-
