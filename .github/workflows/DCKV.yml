@@ -196,6 +196,11 @@ jobs:
         cd openwrt/
         ${GITHUB_WORKSPACE}/${DIY_P2_SH}
 
+    - name: Synchronize configuration
+      run: |
+        cd openwrt/
+        make defconfig
+
     - name: Save Kernel Config for kmods
       run: |
         cd openwrt/
@@ -274,6 +279,13 @@ jobs:
         removeArtifacts: false
         replacesArtifacts: true
         token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Debugging toolchain/binutils build failure
+      if: ${{ steps.compile.outputs.status != 'success' }}
+      run: |
+        cd openwrt/
+        make -j1 V=s toolchain/binutils/compile
+
         body: |
             ### OpenWrt Image information
             - Default IP: 192.168.1.1
