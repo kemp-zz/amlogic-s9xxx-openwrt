@@ -3,74 +3,74 @@ name: DCKV2
 on:
   repository_dispatch:
   workflow_dispatch:
-    inputs:
-      source_branch:
-        description: "Select the source branch"
-        required: false
-        default: "immortalwrt-23.05"
-        type: choice
-        options:
-          - openwrt-main
-          - lede-master
-          - immortalwrt-23.05
-      openwrt_board:
-        description: "Select device board"
-        required: false
-        default: "smart-am40"
-        type: choice
-        options:
-          - all
-          - smart-am40
-      openwrt_kernel:
-        description: "Select kernel version"
-        required: false
-        default: "6.1.100"
-        type: choice
-        options:
-          - 5.4.y
-          - 5.10.y
-          - 5.15.y
-          - 6.1.100
-          - 6.6.y
-      auto_kernel:
-        description: "Auto use the latest kernel"
-        required: false
-        default: true
-        type: boolean
-      kernel_repo:
-        description: "Set the kernel repository"
-        required: false
-        default: "ophub/kernel"
-        type: choice
-        options:
-          - ophub/kernel
-      kernel_usage:
-        description: "Set the tags of the stable kernel."
-        required: false
-        default: "stable"
-        type: choice
-        options:
-          - stable
-          - flippy
-          - dev
-          - beta
-      openwrt_storage:
-        description: "Select image storage type."
-        required: false
-        default: "save"
-        type: choice
-        options:
-          - save
-          - temp
-      builder_name:
-        description: "Set OpenWrt builder signature."
-        required: false
-        default: "ophub"
-        type: choice
-        options:
-          - ophub
-          - angel
-          - yourname
+  inputs:
+    source_branch:
+      description: "Select the source branch"
+      required: false
+      default: "immortalwrt-23.05"
+      type: choice
+      options:
+      - openwrt-main
+      - lede-master
+      - immortalwrt-23.05
+    openwrt_board:
+      description: "Select device board"
+      required: false
+      default: "smart-am40"
+      type: choice
+      options:
+      - all
+      - smart-am40
+    openwrt_kernel:
+      description: "Select kernel version"
+      required: false
+      default: "6.1.100"
+      type: choice
+      options:
+      - 5.4.y
+      - 5.10.y
+      - 5.15.y
+      - 6.1.100
+      - 6.6.y
+    auto_kernel:
+      description: "Auto use the latest kernel"
+      required: false
+      default: true
+      type: boolean
+    kernel_repo:
+      description: "Set the kernel repository"
+      required: false
+      default: "ophub/kernel"
+      type: choice
+      options:
+      - ophub/kernel
+    kernel_usage:
+      description: "Set the tags of the stable kernel."
+      required: false
+      default: "stable"
+      type: choice
+      options:
+      - stable
+      - flippy
+      - dev
+      - beta
+    openwrt_storage:
+      description: "Select image storage type."
+      required: false
+      default: "save"
+      type: choice
+      options:
+      - save
+      - temp
+    builder_name:
+      description: "Set OpenWrt builder signature."
+      required: false
+      default: "ophub"
+      type: choice
+      options:
+      - ophub
+      - angel
+      - yourname
 
 env:
   FEEDS_CONF: config/${{ inputs.source_branch }}/feeds.conf.default
@@ -83,174 +83,202 @@ jobs:
   build:
     runs-on: ubuntu-22.04
     if: ${{ github.event.repository.owner.id }} == ${{ github.event.sender.id }}
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+    - name: Checkout
+      uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: |
-           sudo apt-get update
-           sudo apt-get install -y build-essential ccache zlib1g-dev \
-                              git-core gnupg flex unzip autoconf \
-                              libtool pkg-config device-tree-compiler \
-                              python3 python3-pip awscli imagemagick \
-                              haveged htop git-lfs squashfs-tools \
-                              bc -y subversion  
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential ccache zlib1g-dev \
+                           git-core gnupg flex unzip autoconf \
+                           libtool pkg-config device-tree-compiler \
+                           python3 python3-pip awscli imagemagick \
+                           haveged htop git-lfs squashfs-tools \
+                           bc -y subversion 
+                           # Install libpcre-dev
+                           #libpcre3-dev
 
-      - name: Initialization environment
-        id: init
-        env:
-          DEBIAN_FRONTEND: noninteractive
-        run: |
-          docker rmi $(docker images -q) 2>/dev/null
-          [[ -n "${AGENT_TOOLSDIRECTORY}" ]] && sudo rm -rf "${AGENT_TOOLSDIRECTORY}"
-          sudo rm -rf /usr/share/dotnet /etc/apt/sources.list.d /usr/local/lib/android 2>/dev/null
-          sudo swapoff -a
-          sudo rm -f /swapfile /mnt/swapfile
-          sudo -E apt-get -y update
-          sudo -E apt-get -y purge azure-cli ghc* zulu* llvm* firefox google* dotnet* powershell openjdk* mongodb* moby* || true
-          sudo -E apt-get -y install $(curl -fsSL https://is.gd/depend_ubuntu2204_openwrt)
-          sudo -E systemctl daemon-reload
-          sudo -E apt-get -y autoremove --purge
-          sudo -E apt-get clean
-          sudo sed -i '/NVM_DIR/d;/skel/d' /root/{.bashrc,.profile}
-          sudo rm -rf ~/{.cargo,.dotnet,.rustup}
-          sudo timedatectl set-timezone "${TZ}"
-          echo "status=success" >> ${GITHUB_OUTPUT}
+    - name: Initialization environment
+      id: init
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        docker rmi $(docker images -q) 2>/dev/null
+        [[ -n "${AGENT_TOOLSDIRECTORY}" ]] && sudo rm -rf "${AGENT_TOOLSDIRECTORY}"
+        sudo rm -rf /usr/share/dotnet /etc/apt/sources.list.d /usr/local/lib/android 2>/dev/null
+        sudo swapoff -a
+        sudo rm -f /swapfile /mnt/swapfile
+        sudo -E apt-get -y update
+        sudo -E apt-get -y purge azure-cli ghc* zulu* llvm* firefox google* dotnet* powershell openjdk* mongodb* moby* || true
+        sudo -E apt-get -y install $(curl -fsSL https://is.gd/depend_ubuntu2204_openwrt)
+        sudo -E systemctl daemon-reload
+        sudo -E apt-get -y autoremove --purge
+        sudo -E apt-get clean
+        sudo sed -i '/NVM_DIR/d;/skel/d' /root/{.bashrc,.profile}
+        sudo rm -rf ~/{.cargo,.dotnet,.rustup}
+        sudo timedatectl set-timezone "${TZ}"
+        echo "status=success" >> ${GITHUB_OUTPUT}
 
-      - name: Create simulated physical disk
-        run: |
-          mnt_size=$(expr $(df -h /mnt | tail -1 | awk '{print $4}' | sed 's/[[:alpha:]]//g' | sed 's/\..*//') - 1)
-          root_size=$(expr $(df -h / | tail -1 | awk '{print $4}' | sed 's/[[:alpha:]]//g' | sed 's/\..*//') - 4)
-          sudo truncate -s "${mnt_size}"G /mnt/mnt.img
-          sudo truncate -s "${root_size}"G /root.img
-          sudo losetup /dev/loop6 /mnt/mnt.img
-          sudo losetup /dev/loop7 /root.img
-          sudo pvcreate /dev/loop6
-          sudo pvcreate /dev/loop7
-          sudo vgcreate github /dev/loop6 /dev/loop7
-          sudo lvcreate -n runner -l 100%FREE github
-          sudo mkfs.xfs /dev/github/runner
-          sudo mkdir -p /builder
-          sudo mount /dev/github/runner /builder
-          sudo chown -R runner.runner /builder
-          df -Th
+    - name: Create simulated physical disk
+      run: |
+        mnt_size=$(expr $(df -h /mnt | tail -1 | awk '{print $4}' | sed 's/[[:alpha:]]//g' | sed 's/\..*//') - 1)
+        root_size=$(expr $(df -h / | tail -1 | awk '{print $4}' | sed 's/[[:alpha:]]//g' | sed 's/\..*//') - 4)
+        sudo truncate -s "${mnt_size}"G /mnt/mnt.img
+        sudo truncate -s "${root_size}"G /root.img
+        sudo losetup /dev/loop6 /mnt/mnt.img
+        sudo losetup /dev/loop7 /root.img
+        sudo pvcreate /dev/loop6
+        sudo pvcreate /dev/loop7
+        sudo vgcreate github /dev/loop6 /dev/loop7
+        sudo lvcreate -n runner -l 100%FREE github
+        sudo mkfs.xfs /dev/github/runner
+        sudo mkdir -p /builder
+        sudo mount /dev/github/runner /builder
+        sudo chown -R runner.runner /builder
+        df -Th
 
-      - name: Clone source code [ ${{ inputs.source_branch }} ]
-        id: codes
-        working-directory: /builder
-        if: ${{ steps.init.outputs.status }} == 'success' && !cancelled()
-        run: |
-          # Set up compilation source code
-          if [[ "${{ inputs.source_branch }}" == *"openwrt"* ]]; then
-              REPO_URL="https://github.com/openwrt/openwrt"
-              REPO_BRANCH="main"
-              TAGS_NAME="official"
-          elif [[ "${{ inputs.source_branch }}" == *"lede"* ]]; then
-              REPO_URL="https://github.com/coolsnowwolf/lede"
-              REPO_BRANCH="master"
-              TAGS_NAME="lede"
-          elif [[ "${{ inputs.source_branch }}" == *"immortalwrt"* ]]; then
-              REPO_URL="https://github.com/immortalwrt/immortalwrt"
-              REPO_BRANCH="master"
-              TAGS_NAME="immortalwrt"
-          else
-              echo "Unknown source code repository."
-              exit 1
-          fi
-
-          # Clone source code
-          git clone -q --single-branch --depth=1 --branch=${REPO_BRANCH} ${REPO_URL} openwrt
-          ln -sf /builder/openwrt ${GITHUB_WORKSPACE}/openwrt
-          ln -sf /builder/openwrt /home/runner/work/_actions/ophub/amlogic-s9xxx-openwrt/main/openwrt
-
-          # Set output information
-          echo "build_tag=OpenWrt_${TAGS_NAME}_${{ inputs.openwrt_storage }}_$(date +"%Y.%m")" >> ${GITHUB_OUTPUT}
-          echo -e "REPO_URL: [ ${REPO_URL} ]\nREPO_BRANCH: [ ${REPO_BRANCH} ]\nTAGS_NAME: [ ${TAGS_NAME} ]"
-          df -hT ${PWD}
-          echo "REPO_URL=${REPO_URL}" >> ${GITHUB_OUTPUT}
-          echo "TAGS_NAME=${TAGS_NAME}" >> ${GITHUB_OUTPUT}
-          echo "status=success" >> ${GITHUB_OUTPUT}
-
-      - name: Load custom feeds
-        run: |
-          [[ -f "${FEEDS_CONF}" ]] && cp -f ${FEEDS_CONF} openwrt/feeds.conf.default
-          chmod +x ${DIY_P1_SH}
-          cd openwrt/
-          ${GITHUB_WORKSPACE}/${DIY_P1_SH}
-
-      - name: Update feeds
-        run: cd openwrt/ && ./scripts/feeds update -a
-
-      - name: Install feeds
-        run: cd openwrt/ && ./scripts/feeds install -a
-
-      - name: Load custom configuration
-        run: |
-          [[ -d "files" ]] && mv -f files openwrt/files
-          [[ -e "${CONFIG_FILE}" ]] && cp -f ${CONFIG_FILE} openwrt/.config
-          chmod +x ${DIY_P2_SH}
-          cd openwrt/          ${GITHUB_WORKSPACE}/${DIY_P2_SH}
-
-      - name: Download package
-        id: package
-        run: |
-          cd openwrt/
-          make
-      - name: Configure build
-        run: |
-          cd openwrt/
-          # Update configuration
-          make defconfig
-
-      - name: Compile OpenWrt
-        run: |
-          cd openwrt/
-          # Ensure the kernel version is correct
-          if [[ "${{ inputs.openwrt_kernel }}" == "auto" ]]; then
-            echo "Using default kernel version"
-          else
-            echo "Setting kernel version to ${{ inputs.openwrt_kernel }}"
-            echo "CONFIG_KERNEL_VERSION=${{ inputs.openwrt_kernel }}" >> .config
-          fi
-
-          # Start compilation
-          make -j$(nproc) V=s
-
-      - name: Check build artifacts
-        run: |
-          # Check if the build artifacts exist
-          if [[ -d "bin/targets" ]]; then
-            echo "Build successful!"
-            ls -la bin/targets/
-          else
-            echo "Build failed."
+    - name: Clone source code [ ${{ inputs.source_branch }} ]
+      id: codes
+      working-directory: /builder
+      if: ${{ steps.init.outputs.status }} == 'success' && !cancelled()
+      run: |
+        # Set up compilation source code
+        if [[ "${{ inputs.source_branch }}" == *"openwrt"* ]]; then
+            REPO_URL="https://github.com/openwrt/openwrt"
+            REPO_BRANCH="main"
+            TAGS_NAME="official"
+        elif [[ "${{ inputs.source_branch }}" == *"lede"* ]]; then
+            REPO_URL="https://github.com/coolsnowwolf/lede"
+            REPO_BRANCH="master"
+            TAGS_NAME="lede"
+        elif [[ "${{ inputs.source_branch }}" == *"immortalwrt"* ]]; then
+            REPO_URL="https://github.com/immortalwrt/immortalwrt"
+            REPO_BRANCH="master"
+            TAGS_NAME="immortalwrt"
+        else
+            echo "Unknown source code repository."
             exit 1
-          fi
+        fi
 
-      - name: Upload build artifacts
-        if: success()
-        uses: actions/upload-artifact@v3
-        with:
-          name: openwrt-build
-          path: openwrt/bin/
+        # Clone source code
+        git clone -q --single-branch --depth=1 --branch=${REPO_BRANCH} ${REPO_URL} openwrt
+        ln -sf /builder/openwrt ${GITHUB_WORKSPACE}/openwrt
+        ln -sf /builder/openwrt /home/runner/work/_actions/ophub/amlogic-s9xxx-openwrt/main/openwrt
 
-      - name: Cleanup
-        run: |
-          # Cleanup the workspace
-          sudo umount /builder
-          sudo losetup -d /dev/loop6
-          sudo losetup -d /dev/loop7
-          sudo rm -f /mnt/mnt.img /root.img
+        # Set output information
+        echo "build_tag=OpenWrt_${TAGS_NAME}_${{ inputs.openwrt_storage }}_$(date +"%Y.%m")" >> ${GITHUB_OUTPUT}
+        echo -e "REPO_URL: [ ${REPO_URL} ]\nREPO_BRANCH: [ ${REPO_BRANCH} ]\nTAGS_NAME: [ ${TAGS_NAME} ]"
+        df -hT ${PWD}
+        echo "REPO_URL=${REPO_URL}" >> ${GITHUB_OUTPUT}
+        echo "TAGS_NAME=${TAGS_NAME}" >> ${GITHUB_OUTPUT}
+        echo "status=success" >> ${GITHUB_OUTPUT}
 
-      - name: Notify
-        run: echo "Build and upload completed."
+    - name: Load custom feeds
+      run: |
+        [[ -f "${FEEDS_CONF}" ]] && cp -f ${FEEDS_CONF} openwrt/feeds.conf.default
+        chmod +x ${DIY_P1_SH}
+        cd openwrt/
+        ${GITHUB_WORKSPACE}/${DIY_P1_SH}
 
-    outputs:
-      build_tag:
-        description: "The tag used for the build"
-        value: ${{ steps.codes.outputs.build_tag }}
-      status:
-        description: "Build status"
-        value: ${{ steps.codes.outputs.status }}
+    - name: Update feeds
+      run: cd openwrt/ && ./scripts/feeds update -a
+
+    - name: Install feeds
+      run: cd openwrt/ && ./scripts/feeds install -a
+
+    - name: Load custom configuration
+      run: |
+        [[ -d "files" ]] && mv -f files openwrt/files
+        [[ -e "${CONFIG_FILE}" ]] && cp -f ${CONFIG_FILE} openwrt/.config
+        chmod +x ${DIY_P2_SH}
+        cd openwrt/          ${GITHUB_WORKSPACE}/${DIY_P2_SH}
+
+    - name: Download package
+      id: package
+      run: |
+        cd openwrt/
+        make defconfig
+        make download -j8
+        find dl -size -1024c -exec ls -l {} \;
+        find dl -size -1024c -exec rm -f {} \;
+
+    - name: Compile the OpenWrt
+      id: compile
+      run: |
+        cd openwrt/
+        make clean
+        make dirclean
+        ./scripts/feeds update -a
+        ./scripts/feeds install -a
+        make defconfig
+        make menuconfig
+
+        # 将内核版本写入到配置文件中
+        echo "CONFIG_TARGET_KERNEL_VERSION=\"${{ inputs.openwrt_kernel }}\"" >> openwrt/.config 
+
+        echo -e "$(nproc) thread compile"
+        make -j$(($(nproc) + 1)) V=s || make -j1 || make -j1 V=s
+        echo "status=success" >> ${GITHUB_OUTPUT}
+
+    - name: Compile kernel modules (kmods)
+      id: compile_kmods
+      if: ${{ steps.compile.outputs.status }} == 'success' && !cancelled()
+      run: |
+        cd openwrt/
+        # 使用配置文件中的内核版本编译 kmods
+        make -j$(($(nproc) + 1)) V=s modules CONFIG_TARGET_KERNEL_VERSION="${{ inputs.openwrt_kernel }}" || make -j1 modules CONFIG_TARGET_KERNEL_VERSION="${{ inputs.openwrt_kernel }}" || make -j1 V=s modules CONFIG_TARGET_KERNEL_VERSION="${{ inputs.openwrt_kernel }}"
+        echo "status=success" >> ${GITHUB_OUTPUT}
+
+    - name: Clear server space
+      id: clean
+      if: ${{ steps.compile_kmods.outputs.status }} == 'success' && !cancelled()
+      run: |
+        # Clean up server space
+        cd openwrt/
+        [[ -d "output" ]] || mkdir output
+        cp -f bin/targets/*/*/*rootfs.tar.gz output/
+        cp -f .config output/config
+        rm -rf $(ls . | grep -v "^output$" | xargs) 2>/dev/null
+
+        # Generate sha256sum file
+        cd output/
+        for file in *; do [[ ! -d "${file}" ]] && sha256sum "${file}" >"${file}.sha"; done
+
+        # Set output information
+        df -hT ${PWD}
+        echo "status=success" >> ${GITHUB_OUTPUT}
+
+    - name: Upload OpenWrt to Release
+      uses: ncipollo/release-action@main
+      if: ${{ steps.clean.outputs.status }} == 'success' && !cancelled()
+      with:
+        tag: ${{ steps.codes.outputs.build_tag }}
+        artifacts: openwrt/output/*
+        allowUpdates: true
+        removeArtifacts: false
+        replacesArtifacts: true
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Packaging OpenWrt
+      if: ${{ steps.clean.outputs.status }} == 'success' && !cancelled()
+      uses: ophub/amlogic-s9xxx-openwrt@main
+      with:
+        openwrt_path: openwrt/output/*rootfs.tar.gz
+        openwrt_board: ${{ inputs.openwrt_board }}
+        openwrt_kernel: ${{ inputs.openwrt_kernel }}
+        auto_kernel: ${{ inputs.auto_kernel }}
+        kernel_repo: ${{ inputs.kernel_repo }}
+        kernel_usage: ${{ inputs.kernel_usage }}
+        builder_name: ${{ inputs.builder_name }}
+
+    - name: Upload the packaged OpenWrt
+      uses: ncipollo/release-action@main
+      if: ${{ env.PACKAGED_STATUS }} == 'success' && !cancelled()
+      with:
+        tag: ${{ steps.codes.outputs.build_tag }}
+        artifacts: ${{ env.PACKAGED_OUTPUTPATH }}/*
+        allowUpdates: true
+        removeArtifacts: false
+        replacesArtifacts: true
+        token: ${{ secrets.GITHUB_TOKEN }}
