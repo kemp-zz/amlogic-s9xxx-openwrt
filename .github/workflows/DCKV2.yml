@@ -218,15 +218,12 @@ jobs:
         ./scripts/feeds update -a
         ./scripts/feeds install -a
 
-        # Set default configuration
-        make defconfig
+        # Set default configuration and target kernel version
+        make defconfig CONFIG_TARGET_KERNEL_VERSION="${{ inputs.openwrt_kernel }}"
 
         # Configure the build (if you need to adjust settings)
         # make menuconfig
         # (If you do need menuconfig, remember to save and exit)
-
-        # Set the target kernel version
-        echo "CONFIG_TARGET_KERNEL_VERSION=\"${{ inputs.openwrt_kernel }}\"" >> .config
 
         # Compile OpenWrt
         echo -e "$(nproc) thread compile"
