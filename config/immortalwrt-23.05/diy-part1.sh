@@ -8,7 +8,14 @@
 
 # Add a feed source
 # sed -i '$a src-git lienol https://github.com/Lienol/openwrt-package' feeds.conf.default
-git clone --branch openwrt-23.05 https://github.com/immortalwrt/packages.git package/immortalwrt-packages
+
+
+
+echo "src-git packages https://github.com/immortalwrt/packages.git;openwrt-23.05" >> feeds.conf.default
+echo "src-git luci https://github.com/immortalwrt/luci.git;openwrt-23.05" >> feeds.conf.default
+echo "src-git routing https://github.com/openwrt-routing/packages.git;openwrt-23.05" >> feeds.conf.default
+echo "src-git telephony https://github.com/openwrt/telephony.git;openwrt-23.05" >> feeds.conf.default
+
 
 
 # other
