@@ -4,74 +4,74 @@ name: DCKV2
 on:
   repository_dispatch:
   workflow_dispatch:
-  inputs:
-    source_branch:
-      description: "Select the source branch"
-      required: false
-      default: "immortalwrt-23.05"
-      type: choice
-      options:
-      - openwrt-main
-      - lede-master
-      - immortalwrt-23.05
-    openwrt_board:
-      description: "Select device board"
-      required: false
-      default: "smart-am40"
-      type: choice
-      options:
-      - all
-      - smart-am40
-    openwrt_kernel:
-      description: "Select kernel version"
-      required: false
-      default: "6.1.100"
-      type: choice
-      options:
-      - 5.4.y
-      - 5.10.y
-      - 5.15.y
-      - 6.1.100
-      - 6.6.y
-    auto_kernel:
-      description: "Auto use the latest kernel"
-      required: false
-      default: true
-      type: boolean
-    kernel_repo:
-      description: "Set the kernel repository"
-      required: false
-      default: "ophub/kernel"
-      type: choice
-      options:
-      - ophub/kernel
-    kernel_usage:
-      description: "Set the tags of the stable kernel."
-      required: false
-      default: "stable"
-      type: choice
-      options:
-      - stable
-      - flippy
-      - dev
-      - beta
-    openwrt_storage:
-      description: "Select image storage type."
-      required: false
-      default: "save"
-      type: choice
-      options:
-      - save
-      - temp
-    builder_name:
-      description: "Set OpenWrt builder signature."
-      required: false
-      default: "ophub"
-      type: choice
-      options:
-      - ophub
-      - angel
-      - yourname
+    inputs:
+      source_branch:
+        description: "Select the source branch"
+        required: false
+        default: "immortalwrt-23.05"
+        type: choice
+        options:
+          - openwrt-main
+          - lede-master
+          - immortalwrt-23.05
+      openwrt_board:
+        description: "Select device board"
+        required: false
+        default: "smart-am40"
+        type: choice
+        options:
+          - all
+          - smart-am40
+      openwrt_kernel:
+        description: "Select kernel version"
+        required: false
+        default: "6.1.100"
+        type: choice
+        options:
+          - 5.4.y
+          - 5.10.y
+          - 5.15.y
+          - 6.1.100
+          - 6.6.y
+      auto_kernel:
+        description: "Auto use the latest kernel"
+        required: false
+        default: true
+        type: boolean
+      kernel_repo:
+        description: "Set the kernel repository"
+        required: false
+        default: "ophub/kernel"
+        type: choice
+        options:
+          - ophub/kernel
+      kernel_usage:
+        description: "Set the tags of the stable kernel."
+        required: false
+        default: "stable"
+        type: choice
+        options:
+          - stable
+          - flippy
+          - dev
+          - beta
+      openwrt_storage:
+        description: "Select image storage type."
+        required: false
+        default: "save"
+        type: choice
+        options:
+          - save
+          - temp
+      builder_name:
+        description: "Set OpenWrt builder signature."
+        required: false
+        default: "ophub"
+        type: choice
+        options:
+          - ophub
+          - angel
+          - yourname
 
 env:
   FEEDS_CONF: config/${{ inputs.source_branch }}/feeds.conf.default
