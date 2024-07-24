@@ -204,12 +204,13 @@ jobs:
         find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;
         
-    - name: Update kmod-jool-netfilter Makefile
+    - name: Build kmod-jool-netfilter with Correct Kernel Version
       run: |
-          cd openwrt/package/kmod-jool-netfilter
-          #  Get your kernel version (e.g., 6.1.100) from the environment 
-          kernel_version="${{ env.KERNEL_VERSION }}"
-          sed -i "s/PKG_VERSION=.*/PKG_VERSION=${kernel_version}+4.1.12-1/" Makefile
+       cd openwrt/package/kmod-jool-netfilter
+       make -j$(($(nproc) + 1)) V=s \
+          PKG_VERSION=${{ env.KERNEL_VERSION }}+4.1.12-1 \
+          KBUILD_MODNAME=$(KBUILD_MODNAME_PREFIX)kmod_jool_netfilter
+       cp $(find . -name "*.ipk") openwrt/bin/targets/$(OPENWRT_BOARD)/$(KERNEL_VERSION)/
 
     - name: Compile the OpenWrt
       id: compile
