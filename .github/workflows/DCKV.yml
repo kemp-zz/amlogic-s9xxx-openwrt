@@ -78,6 +78,7 @@ env:
   DIY_P1_SH: config/${{ inputs.source_branch }}/diy-part1.sh
   DIY_P2_SH: config/${{ inputs.source_branch }}/diy-part2.sh
   TZ: America/New_York
+  KBUILD_MODNAME_PREFIX: "kmod_"  # Set the prefix for module names
 
 jobs:
   build:
