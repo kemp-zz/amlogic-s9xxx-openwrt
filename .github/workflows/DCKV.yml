@@ -229,22 +229,9 @@ jobs:
         # Set success status for workflow
         echo "status=success" >> ${GITHUB_OUTPUT}
 
-    - name: Compile kmods
-      id: compile_kmods
-      run: |
-        cd openwrt/
-        # Set default configuration and target kernel version
-        make defconfig CONFIG_TARGET_KERNEL_VERSION="${{ env.KERNEL_VERSION }}"
-
-        # Compile kmods
-        make -j$(($(nproc) + 1)) V=s KMODS || make -j1 KMODS || make -j1 V=s KMODS
-
-        # Set success status for workflow
-        echo "status=success" >> ${GITHUB_OUTPUT}
-
     - name: Clear server space
       id: clean
-      if: ${{ steps.compile_kmods.outputs.status }} == 'success' && !cancelled()
+      if: ${{ steps.compile.outputs.status }} == 'success' && !cancelled()
       run: |
         # Clean up server space
         cd openwrt/
