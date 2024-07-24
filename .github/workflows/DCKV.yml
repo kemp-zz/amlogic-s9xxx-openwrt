@@ -203,6 +203,13 @@ jobs:
         make download -j8
         find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;
+        
+    - name: Update kmod-jool-netfilter Makefile
+      run: |
+          cd openwrt/package/kmod-jool-netfilter
+          #  Get your kernel version (e.g., 6.1.100) from the environment 
+          kernel_version="${{ env.KERNEL_VERSION }}"
+          sed -i "s/PKG_VERSION=.*/PKG_VERSION=${kernel_version}+4.1.12-1/" Makefile
 
     - name: Compile the OpenWrt
       id: compile
