@@ -118,6 +118,11 @@ jobs:
         sudo timedatectl set-timezone "${TZ}"
         echo "status=success" >> ${GITHUB_OUTPUT}
 
+    - name: Create builder directory
+      run: |
+        mkdir -p /builder
+        echo "Builder directory created"
+
     - name: Clone source code [ ${{ inputs.source_branch }} ]
       id: codes
       working-directory: /builder
