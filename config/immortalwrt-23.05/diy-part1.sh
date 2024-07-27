@@ -10,12 +10,12 @@ KERNEL_VERSION="6.1.100"
 # Update kernel version in configuration
 sed -i "s/CONFIG_KERNEL_VERSION=\".*\"/CONFIG_KERNEL_VERSION=\"$KERNEL_VERSION\"/g" .config
 
-# Update kernel version in other relevant files if needed
-# For example, in target configuration files or Makefiles
-# Make sure to update this part according to your project's structure
+# Update include/rootfs.mk to copy target/packages to /modules
+sed -i '/define Build\/Prepare\/rootfs/a\ \t$(CP) $(STAGING_DIR)/target/packages $(BUILD_DIR)/rootfs/modules' include/rootfs.mk
 
-# Example: update kernel version in target Makefile
-# sed -i "s/^KERNEL_PATCHVER:=.*$/KERNEL_PATCHVER:=$KERNEL_VERSION/" target/linux/your_target/Makefile
+# Update opkg.conf to use local source
+sed -i '/src\/gz openwrt_core/d' package/feeds/packages/opkg/files/opkg.conf
+echo 'src/gz openwrt_core file:///modules' >> package/feeds/packages/opkg/files/opkg.conf
 
 # Ensure configuration is updated
 make defconfig
