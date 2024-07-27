@@ -40,7 +40,7 @@ on:
       kernel_repo:
         description: "Set the kernel repository"
         required: false
-        default: "ophub/kernel"
+        default: "breakings/kernel"
         type: choice
         options:
           - ophub/kernel
