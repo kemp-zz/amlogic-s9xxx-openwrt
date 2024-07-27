@@ -1,5 +1,11 @@
 #!/bin/bash
-# diy-part1.sh script for Amlogic S9xxx OpenWrt
+#========================================================================================================================
+# https://github.com/ophub/amlogic-s9xxx-openwrt
+# Description: Automatically Build OpenWrt
+# Function: Diy script (Before Update feeds, Modify the default IP, hostname, theme, add/remove software packages, etc.)
+# Source code repository: https://github.com/immortalwrt/immortalwrt / Branch: master
+#========================================================================================================================
 
-# Clone the packages repository
+# Add a feed source
+# sed -i '$a src-git lienol https://github.com/Lienol/openwrt-package' feeds.conf.default
 git clone -b openwrt-23.05 https://github.com/immortalwrt/packages.git
