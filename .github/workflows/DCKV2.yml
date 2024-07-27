@@ -144,25 +144,28 @@ jobs:
       run: |
         # Set up compilation source code
         if [[ "${{ inputs.source_branch }}" == *"openwrt"* ]]; then
-            REPO_URL="https://github.com/openwrt/openwrt"
-            REPO_BRANCH="main"
-            TAGS_NAME="official"
+        REPO_URL="https://github.com/openwrt/openwrt"
+        REPO_BRANCH="main"
+        TAGS_NAME="official"
         elif [[ "${{ inputs.source_branch }}" == *"lede"* ]]; then
-            REPO_URL="https://github.com/coolsnowwolf/lede"
-            REPO_BRANCH="master"
-            TAGS_NAME="lede"
+        REPO_URL="https://github.com/coolsnowwolf/lede"
+        REPO_BRANCH="master"
+        TAGS_NAME="lede"
         elif [[ "${{ inputs.source_branch }}" == "immortalwrt-23.05" ]]; then
-            REPO_URL="https://github.com/immortalwrt/immortalwrt"
-            REPO_BRANCH="openwrt-23.05"
-            TAGS_NAME="immortalwrt-23.05"
+        REPO_URL="https://github.com/immortalwrt/immortalwrt"
+        REPO_BRANCH="openwrt-23.05"
+        TAGS_NAME="immortalwrt-23.05"
         else
-            echo "Unknown source code repository."
-            exit 1
+        echo "Unknown source code repository."
+        exit 1
         fi
 
         # Clone source code
         git clone -q --single-branch --depth=1 --branch=${REPO_BRANCH} ${REPO_URL} openwrt
         ln -sf /builder/openwrt ${GITHUB_WORKSPACE}/openwrt
+
+        # Ensure the directory exists before creating the symbolic link
+        mkdir -p /home/runner/work/_actions/ophub/amlogic-s9xxx-openwrt/main/
         ln -sf /builder/openwrt /home/runner/work/_actions/ophub/amlogic-s9xxx-openwrt/main/openwrt
 
         # Set output information
@@ -172,6 +175,7 @@ jobs:
         echo "REPO_URL=${REPO_URL}" >> ${GITHUB_OUTPUT}
         echo "TAGS_NAME=${TAGS_NAME}" >> ${GITHUB_OUTPUT}
         echo "status=success" >> ${GITHUB_OUTPUT}
+    
 
     - name: Load custom feeds
       run: |
