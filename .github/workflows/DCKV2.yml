@@ -1,4 +1,4 @@
-name: DCKV2
+name: DCKV
 
 on:
   repository_dispatch:
@@ -24,13 +24,13 @@ on:
       openwrt_kernel:
         description: "Select kernel version"
         required: false
-        default: "6.1.100"
+        default: "5.15.150"
         type: choice
         options:
           - 5.4.y
           - 5.10.y
           - 5.15.y
-          - 6.1.100
+          - 5.15.150
           - 6.6.y
       auto_kernel:
         description: "Auto use the latest kernel"
@@ -65,11 +65,11 @@ on:
       builder_name:
         description: "Set OpenWrt builder signature."
         required: false
-        default: "ophub"
+        default: "breakings"
         type: choice
         options:
           - ophub
-          - angel
+          - breakings
           - yourname
 
 env:
@@ -78,6 +78,7 @@ env:
   DIY_P1_SH: config/${{ inputs.source_branch }}/diy-part1.sh
   DIY_P2_SH: config/${{ inputs.source_branch }}/diy-part2.sh
   TZ: America/New_York
+  KBUILD_MODNAME_PREFIX: "kmod_"  # Set the prefix for module names
 
 jobs:
   build:
@@ -95,7 +96,7 @@ jobs:
                            libtool pkg-config device-tree-compiler \
                            python3 python3-pip awscli imagemagick \
                            haveged htop git-lfs squashfs-tools \
-                           bc subversion
+                           bc -y subversion libpcre3-dev 
 
     - name: Initialization environment
       id: init
@@ -118,39 +119,52 @@ jobs:
         sudo timedatectl set-timezone "${TZ}"
         echo "status=success" >> ${GITHUB_OUTPUT}
 
-    - name: Create builder directory
+    - name: Create simulated physical disk
       run: |
-        mkdir -p ${GITHUB_WORKSPACE}/builder
-        echo "Builder directory created"
+        mnt_size=$(expr $(df -h /mnt | tail -1 | awk '{print $4}' | sed 's/[[:alpha:]]//g' | sed 's/\..*//') - 1)
+        root_size=$(expr $(df -h / | tail -1 | awk '{print $4}' | sed 's/[[:alpha:]]//g' | sed 's/\..*//') - 4)
+        sudo truncate -s "${mnt_size}"G /mnt/mnt.img
+        sudo truncate -s "${root_size}"G /root.img
+        sudo losetup /dev/loop6 /mnt/mnt.img
+        sudo losetup /dev/loop7 /root.img
+        sudo pvcreate /dev/loop6
+        sudo pvcreate /dev/loop7
+        sudo vgcreate github /dev/loop6 /dev/loop7
+        sudo lvcreate -n runner -l 100%FREE github
+        sudo mkfs.xfs /dev/github/runner
+        sudo mkdir -p /builder
+        sudo mount /dev/github/runner /builder
+        sudo chown -R runner.runner /builder
+        df -Th
 
     - name: Clone source code [ ${{ inputs.source_branch }} ]
       id: codes
-      working-directory: ${GITHUB_WORKSPACE}/builder
+      working-directory: /builder
       if: ${{ steps.init.outputs.status }} == 'success' && !cancelled()
       run: |
         # Set up compilation source code
         if [[ "${{ inputs.source_branch }}" == *"openwrt"* ]]; then
-          REPO_URL="https://github.com/openwrt/openwrt"
-          REPO_BRANCH="main"
-          TAGS_NAME="official"
+            REPO_URL="https://github.com/openwrt/openwrt"
+            REPO_BRANCH="main"
+            TAGS_NAME="official"
         elif [[ "${{ inputs.source_branch }}" == *"lede"* ]]; then
-          REPO_URL="https://github.com/coolsnowwolf/lede"
-          REPO_BRANCH="master"
-          TAGS_NAME="lede"
+            REPO_URL="https://github.com/coolsnowwolf/lede"
+            REPO_BRANCH="master"
+            TAGS_NAME="lede"
         elif [[ "${{ inputs.source_branch }}" == "immortalwrt-23.05" ]]; then
-          REPO_URL="https://github.com/immortalwrt/immortalwrt"
-          REPO_BRANCH="openwrt-23.05"
-          TAGS_NAME="immortalwrt-23.05"
+            REPO_URL="https://github.com/immortalwrt/immortalwrt"
+            REPO_BRANCH="openwrt-23.05"
+            TAGS_NAME="immortalwrt-23.05"
         else
-          echo "Unknown source code repository."
-          exit 1
+            echo "Unknown source code repository."
+            exit 1
         fi
+
         # Clone source code
         git clone -q --single-branch --depth=1 --branch=${REPO_BRANCH} ${REPO_URL} openwrt
-        ln -sf ${GITHUB_WORKSPACE}/builder/openwrt ${GITHUB_WORKSPACE}/openwrt
-        # Ensure the directory exists before creating the symbolic link
-        mkdir -p ${GITHUB_WORKSPACE}/home/runner/work/_actions/ophub/amlogic-s9xxx-openwrt/main/
-        ln -sf ${GITHUB_WORKSPACE}/builder/openwrt ${GITHUB_WORKSPACE}/home/runner/work/_actions/ophub/amlogic-s9xxx-openwrt/main/openwrt
+        ln -sf /builder/openwrt ${GITHUB_WORKSPACE}/openwrt
+        ln -sf /builder/openwrt /home/runner/work/_actions/ophub/amlogic-s9xxx-openwrt/main/openwrt
+
         # Set output information
         echo "build_tag=OpenWrt_${TAGS_NAME}_${{ inputs.openwrt_storage }}_$(date +"%Y.%m")" >> ${GITHUB_OUTPUT}
         echo -e "REPO_URL: [ ${REPO_URL} ]\nREPO_BRANCH: [ ${REPO_BRANCH} ]\nTAGS_NAME: [ ${TAGS_NAME} ]"
@@ -161,83 +175,117 @@ jobs:
 
     - name: Load custom feeds
       run: |
-        [[ -f "${FEEDS_CONF}" ]] && cp -f ${FEEDS_CONF} ${GITHUB_WORKSPACE}/builder/openwrt/feeds.conf.default
+        [[ -f "${FEEDS_CONF}" ]] && cp -f ${FEEDS_CONF} openwrt/feeds.conf.default
         chmod +x ${DIY_P1_SH}
-        cd ${GITHUB_WORKSPACE}/builder/openwrt/
+        cd openwrt/
         ${GITHUB_WORKSPACE}/${DIY_P1_SH}
-        echo "Custom feeds loaded"
-
-    - name: Verify feeds configuration
-      run: |
-        cat ${GITHUB_WORKSPACE}/builder/openwrt/feeds.conf.default
-        echo "Feeds configuration verified"
 
     - name: Update feeds
-      run: cd ${GITHUB_WORKSPACE}/builder/openwrt/ && ./scripts/feeds update -a
+      run: cd openwrt/ && ./scripts/feeds update -a
 
     - name: Install feeds
-      run: cd ${GITHUB_WORKSPACE}/builder/openwrt/ && ./scripts/feeds install -a
+      run: cd openwrt/ && ./scripts/feeds install -a
 
     - name: Load custom configuration
       run: |
-        [[ -d "files" ]] && mv -f files ${GITHUB_WORKSPACE}/builder/openwrt/files
-        [[ -e "${CONFIG_FILE}" ]] && cp -f ${CONFIG_FILE} ${GITHUB_WORKSPACE}/builder/openwrt/.config
-        chmod +x ${DIY_P2_SH}
-        cd ${GITHUB_WORKSPACE}/builder/openwrt/
-        ${GITHUB_WORKSPACE}/${DIY_P2_SH}
-
-    - name: Modify include/rootfs.mk
-      run: |
-        sed -i '/define Build\/Prepare\/rootfs/a\ \t$(CP) $(STAGING_DIR)/target/packages $(BUILD_DIR)/rootfs/modules' ${GITHUB_WORKSPACE}/builder/openwrt/include/rootfs.mk
-
-    - name: Modify opkg configuration
-      run: |
-        sed -i '/src\/gz openwrt_core/d' ${GITHUB_WORKSPACE}/builder/openwrt/package/feeds/packages/opkg/files/opkg.conf
-        echo 'src/gz openwrt_core file:///modules' >> ${GITHUB_WORKSPACE}/builder/openwrt/package/feeds/packages/opkg/files/opkg.conf
+       [[ -d "files" ]] && mv -f files openwrt/files
+       [[ -d "files" ]] && mv -f files openwrt/files
+       [[ -e "${CONFIG_FILE}" ]] && cp -f ${CONFIG_FILE} openwrt/.config
+       chmod +x ${DIY_P2_SH}
+       cd openwrt/
+       ${GITHUB_WORKSPACE}/${DIY_P2_SH}
 
     - name: Download package
       id: package
       run: |
-        cd ${GITHUB_WORKSPACE}/builder/openwrt/
+        cd openwrt/
         make defconfig
         make download -j8
         find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;
+        
+    - name: Build kmod-jool-netfilter with Correct Kernel Version
+      run: |
+       cd openwrt/package/kmod-jool-netfilter
+       make -j$(($(nproc) + 1)) V=s \
+          PKG_VERSION=${{ env.KERNEL_VERSION }}+4.1.12-1 \
+          KBUILD_MODNAME=$(KBUILD_MODNAME_PREFIX)kmod_jool_netfilter
+       cp $(find . -name "*.ipk") openwrt/bin/targets/$(OPENWRT_BOARD)/$(KERNEL_VERSION)/
 
     - name: Compile the OpenWrt
       id: compile
       run: |
-        cd ${GITHUB_WORKSPACE}/builder/openwrt/
+        cd openwrt/
         # Clean up previous build artifacts
         make clean
         make dirclean
+
         # Update feeds to get latest packages
         ./scripts/feeds update -a
         ./scripts/feeds install -a
-        # Set default configuration and target kernel version
-        make defconfig CONFIG_TARGET_KERNEL_PART=y
-        # Compile OpenWrt firmware
-        make -j$(nproc) || make -j1 V=s
-        # Verify build success and locate firmware images
-        if [ -f bin/targets/*/*/*.img ]; then
-          echo "Firmware build successful"
-        else
-          echo "Firmware build failed"
-          exit 1
-        fi
-        echo "Firmware and other images are located in the bin/targets/ directory"
 
-    - name: Upload Firmware
+        # Set default configuration and target kernel version
+        make defconfig CONFIG_TARGET_KERNEL_VERSION="${{ env.KERNEL_VERSION }}"
+
+        # Configure the build (if you need to adjust settings)
+        # make menuconfig
+        # (If you do need menuconfig, remember to save and exit)
+
+        # Compile OpenWrt
+        echo -e "$(nproc) thread compile"
+        make -j$(($(nproc) + 1)) V=s || make -j1 || make -j1 V=s
+
+        # Set success status for workflow
+        echo "status=success" >> ${GITHUB_OUTPUT}
+
+    - name: Clear server space
+      id: clean
+      if: ${{ steps.compile.outputs.status }} == 'success' && !cancelled()
       run: |
-        cd ${GITHUB_WORKSPACE}/builder/openwrt/bin/targets/
-        ls
+        # Clean up server space
+        cd openwrt/
+        [[ -d "output" ]] || mkdir output
+        cp -f bin/targets/*/*/*rootfs.tar.gz output/
+        cp -f .config output/config
+        rm -rf $(ls . | grep -v "^output$" | xargs) 2>/dev/null
+
+        # Generate sha256sum file
+        cd output/
+        for file in *; do [[ ! -d "${file}" ]] && sha256sum "${file}" >"${file}.sha"; done
+
+        # Set output information
+        df -hT ${PWD}
+        echo "status=success" >> ${GITHUB_OUTPUT}
 
     - name: Upload OpenWrt to Release
       uses: ncipollo/release-action@main
       if: ${{ steps.clean.outputs.status }} == 'success' && !cancelled()
       with:
         tag: ${{ steps.codes.outputs.build_tag }}
-        artifacts: ${GITHUB_WORKSPACE}/builder/openwrt/output/*
+        artifacts: openwrt/output/*
+        allowUpdates: true
+        removeArtifacts: false
+        replacesArtifacts: true
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Packaging OpenWrt
+      if: ${{ steps.clean.outputs.status }} == 'success' && !cancelled()
+       uses:breakings/amlogic-s9xxx-openwrt@main
+      with:
+        openwrt_path: openwrt/output/*rootfs.tar.gz
+        openwrt_board: ${{ inputs.openwrt_board }}
+        openwrt_kernel: ${{ inputs.openwrt_kernel }}
+        auto_kernel: ${{ inputs.auto_kernel }}
+        kernel_repo: ${{ inputs.kernel_repo }}
+        kernel_usage: ${{ inputs.kernel_usage }}
+        builder_name: ${{ inputs.builder_name }}
+
+    - name: Upload the packaged OpenWrt
+      uses: ncipollo/release-action@main
+      if: ${{ env.PACKAGED_STATUS }} == 'success' && !cancelled()
+      with:
+        tag: ${{ steps.codes.outputs.build_tag }}
+        artifacts: ${{ env.PACKAGED_OUTPUTPATH }}/*
         allowUpdates: true
         removeArtifacts: false
         replacesArtifacts: true
