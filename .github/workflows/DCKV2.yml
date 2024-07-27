@@ -120,12 +120,12 @@ jobs:
 
     - name: Create builder directory
       run: |
-        mkdir -p /builder
+        mkdir -p ${GITHUB_WORKSPACE}/builder
         echo "Builder directory created"
 
     - name: Clone source code [ ${{ inputs.source_branch }} ]
       id: codes
-      working-directory: /builder
+      working-directory: ${GITHUB_WORKSPACE}/builder
       if: ${{ steps.init.outputs.status }} == 'success' && !cancelled()
       run: |
         # Set up compilation source code
@@ -147,10 +147,10 @@ jobs:
         fi
         # Clone source code
         git clone -q --single-branch --depth=1 --branch=${REPO_BRANCH} ${REPO_URL} openwrt
-        ln -sf /builder/openwrt ${GITHUB_WORKSPACE}/openwrt
+        ln -sf ${GITHUB_WORKSPACE}/builder/openwrt ${GITHUB_WORKSPACE}/openwrt
         # Ensure the directory exists before creating the symbolic link
-        mkdir -p /home/runner/work/_actions/ophub/amlogic-s9xxx-openwrt/main/
-        ln -sf /builder/openwrt /home/runner/work/_actions/ophub/amlogic-s9xxx-openwrt/main/openwrt
+        mkdir -p ${GITHUB_WORKSPACE}/home/runner/work/_actions/ophub/amlogic-s9xxx-openwrt/main/
+        ln -sf ${GITHUB_WORKSPACE}/builder/openwrt ${GITHUB_WORKSPACE}/home/runner/work/_actions/ophub/amlogic-s9xxx-openwrt/main/openwrt
         # Set output information
         echo "build_tag=OpenWrt_${TAGS_NAME}_${{ inputs.openwrt_storage }}_$(date +"%Y.%m")" >> ${GITHUB_OUTPUT}
         echo -e "REPO_URL: [ ${REPO_URL} ]\nREPO_BRANCH: [ ${REPO_BRANCH} ]\nTAGS_NAME: [ ${TAGS_NAME} ]"
@@ -161,35 +161,35 @@ jobs:
 
     - name: Load custom feeds
       run: |
-        [[ -f "${FEEDS_CONF}" ]] && cp -f ${FEEDS_CONF} openwrt/feeds.conf.default
+        [[ -f "${FEEDS_CONF}" ]] && cp -f ${FEEDS_CONF} ${GITHUB_WORKSPACE}/builder/openwrt/feeds.conf.default
         chmod +x ${DIY_P1_SH}
-        cd openwrt/
+        cd ${GITHUB_WORKSPACE}/builder/openwrt/
         ${GITHUB_WORKSPACE}/${DIY_P1_SH}
         echo "Custom feeds loaded"
 
     - name: Verify feeds configuration
       run: |
-        cat openwrt/feeds.conf.default
+        cat ${GITHUB_WORKSPACE}/builder/openwrt/feeds.conf.default
         echo "Feeds configuration verified"
 
     - name: Update feeds
-      run: cd openwrt/ && ./scripts/feeds update -a
+      run: cd ${GITHUB_WORKSPACE}/builder/openwrt/ && ./scripts/feeds update -a
 
     - name: Install feeds
-      run: cd openwrt/ && ./scripts/feeds install -a
+      run: cd ${GITHUB_WORKSPACE}/builder/openwrt/ && ./scripts/feeds install -a
 
     - name: Load custom configuration
       run: |
-        [[ -d "files" ]] && mv -f files openwrt/files
-        [[ -e "${CONFIG_FILE}" ]] && cp -f ${CONFIG_FILE} openwrt/.config
+        [[ -d "files" ]] && mv -f files ${GITHUB_WORKSPACE}/builder/openwrt/files
+        [[ -e "${CONFIG_FILE}" ]] && cp -f ${CONFIG_FILE} ${GITHUB_WORKSPACE}/builder/openwrt/.config
         chmod +x ${DIY_P2_SH}
-        cd openwrt/
+        cd ${GITHUB_WORKSPACE}/builder/openwrt/
         ${GITHUB_WORKSPACE}/${DIY_P2_SH}
 
     - name: Download package
       id: package
       run: |
-        cd openwrt/
+        cd ${GITHUB_WORKSPACE}/builder/openwrt/
         make defconfig
         make download -j8
         find dl -size -1024c -exec ls -l {} \;
@@ -198,7 +198,7 @@ jobs:
     - name: Compile the OpenWrt
       id: compile
       run: |
-        cd openwrt/
+        cd ${GITHUB_WORKSPACE}/builder/openwrt/
         # Clean up previous build artifacts
         make clean
         make dirclean
@@ -220,7 +220,7 @@ jobs:
 
     - name: Upload Firmware
       run: |
-        cd openwrt/bin/targets/
+        cd ${GITHUB_WORKSPACE}/builder/openwrt/bin/targets/
         ls
 
     - name: Upload OpenWrt to Release
@@ -228,7 +228,7 @@ jobs:
       if: ${{ steps.clean.outputs.status }} == 'success' && !cancelled()
       with:
         tag: ${{ steps.codes.outputs.build_tag }}
-        artifacts: openwrt/output/*
+        artifacts: ${GITHUB_WORKSPACE}/builder/openwrt/output/*
         allowUpdates: true
         removeArtifacts: false
         replacesArtifacts: true
