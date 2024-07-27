@@ -1,4 +1,4 @@
-name: DCKV
+name: DCKV2
 
 on:
   repository_dispatch:
