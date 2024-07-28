@@ -137,6 +137,7 @@ jobs:
           sudo mount /dev/github/runner /builder
           sudo chown -R runner.runner /builder
           df -Th
+          
       - name: Clone source code [ ${{ inputs.source_branch }} ]
         id: codes
         working-directory: /builder
@@ -161,8 +162,11 @@ jobs:
           fi
           # Clone source code
           git clone -q --single-branch --depth=1 --branch=${REPO_BRANCH} ${REPO_URL} openwrt
-          ln -sf /builder/openwrt ${GITHUB_WORKSPACE}/openwrt
-          ln -sf /builder/openwrt /home/runner/work/_actions/ophub/amlogic-s9xxx-openwrt/main/openwrt
+
+          # Create symbolic links
+          ln -sf /builder/openwrt ${GITHUB_WORKSPACE}/openwrt || echo "Failed to create symbolic link to ${GITHUB_WORKSPACE}/openwrt"
+          mkdir -p /home/runner/work/_actions/ophub/amlogic-s9xxx-openwrt/main/  # Ensure the parent directory exists
+          ln -sf /builder/openwrt /home/runner/work/_actions/ophub/amlogic-s9xxx-openwrt/main/openwrt || echo "Failed to create symbolic link to /home/runner/work/_actions/ophub/amlogic-s9xxx-openwrt/main/openwrt"
 
           # Set output information
           echo "build_tag=OpenWrt_${TAGS_NAME}_${{ inputs.openwrt_storage }}_$(date +"%Y.%m")" >> ${GITHUB_OUTPUT}
@@ -171,6 +175,7 @@ jobs:
           echo "REPO_URL=${REPO_URL}" >> ${GITHUB_OUTPUT}
           echo "TAGS_NAME=${TAGS_NAME}" >> ${GITHUB_OUTPUT}
           echo "status=success" >> ${GITHUB_OUTPUT}
+
 
       - name: Load custom feeds
         run: |
