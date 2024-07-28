@@ -1,11 +1,15 @@
+```bash
 #!/bin/bash
-#========================================================================================================================
-# https://github.com/ophub/amlogic-s9xxx-openwrt
-# Description: Automatically Build OpenWrt
-# Function: Diy script (Before Update feeds, Modify the default IP, hostname, theme, add/remove software packages, etc.)
-# Source code repository: https://github.com/immortalwrt/immortalwrt / Branch: master
-#========================================================================================================================
 
-# Add a feed source
-# sed -i '$a src-git lienol https://github.com/Lienol/openwrt-package' feeds.conf.default
-git clone -b openwrt-23.05 https://github.com/immortalwrt/packages.git
+# 检查GITHUB_OUTPUT中是否包含 "smart-am40"
+if [ "$(grep -c "smart-am40" $GITHUB_OUTPUT)" -eq '1' ]; then
+  # 获取内核版本值
+  curl -s https://downloads.immortalwrt.org/snapshots/targets/armsr/armv8/kmods/6.1.86-1-58955783205c88e28ca2f240287756a0/Packages.manifest | grep kernel | awk '{print $3}' | awk -F- '{print $3}' > vermagic
+  echo "smart-am40 Vermagic Done"
+  echo "当前Vermagic："
+  cat vermagic
+
+  # 修改 kernel-defaults.mk 以使用固定的 vermagic
+  sed -i '/grep '\''=\[ym\]'\'' $(LINUX_DIR)\/\.config\.set | LC_ALL=C sort | $(MKHASH) md5 > $(LINUX_DIR)\/\.vermagic/s/^/# /' ./include/kernel-defaults.mk
+  sed -i '/$(LINUX_DIR)\/\.vermagic/a \\tcp $(TOPDIR)/vermagic $(LINUX_DIR)/.vermagic' ./include/kernel-defaults.mk
+fi
