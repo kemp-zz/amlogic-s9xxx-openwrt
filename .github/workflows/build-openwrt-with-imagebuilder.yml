@@ -200,20 +200,34 @@ jobs:
             # BTRFS 文件系统处理
             echo "Processing BTRFS filesystem"
       
+            # 创建临时挂载点
+            mkdir -p /tmp/btrfs_root
+            sudo mount -o loop,subvol=/ rootfs.img /tmp/btrfs_root
+
             # 创建符号链接
-            btrfs restore -i -o /boot/vmlinuz-5.15.162-ophub=/boot/vmlinuz-5.15.162 rootfs.img /tmp/btrfs_root
-            btrfs restore -i -o /lib/modules/5.15.162-ophub=/lib/modules/5.15.162 rootfs.img /tmp/btrfs_root
+            sudo ln -sf /lib/modules/5.15.162-ophub /tmp/btrfs_root/lib/modules/5.15.162
+            sudo ln -sf /boot/vmlinuz-5.15.162-ophub /tmp/btrfs_root/boot/vmlinuz-5.15.162
+
+            # 更新模块依赖关系
+            sudo depmod -a -b /tmp/btrfs_root 5.15.162-ophub
 
             # 显示创建的符号链接
             echo "Contents of /boot:"
-            btrfs restore -l rootfs.img /tmp/btrfs_root | grep "/boot/vmlinuz-5.15.162"
+            ls -l /tmp/btrfs_root/boot | grep "vmlinuz-5.15.162"
             echo "Contents of /lib/modules:"
-            btrfs restore -l rootfs.img /tmp/btrfs_root | grep "/lib/modules/5.15.162"
+            ls -l /tmp/btrfs_root/lib/modules | grep "5.15.162"
+
+            # 显示模块信息
+            echo "Module information:"
+            sudo find /tmp/btrfs_root/lib/modules/5.15.162-ophub -name "*.ko" | xargs -I {} modinfo {}
 
             # 显示根目录结构
             echo "Root directory structure:"
-            btrfs restore -l rootfs.img /tmp/btrfs_root | sed -n 's/^/  /p' | head -n 50
+            sudo find /tmp/btrfs_root -maxdepth 3 -type d | sed 's|/tmp/btrfs_root||' | sort
 
+            # 卸载文件系统
+            sudo umount /tmp/btrfs_root
+      
             # 不需要重新打包，直接使用原始镜像
             cp rootfs.img new_rootfs.img
           else
@@ -225,10 +239,10 @@ jobs:
           dd if=new_rootfs.img of=$IMG_FILE bs=512 seek=$PARTITION_START conv=notrunc
 
           # 清理临时文件
-          rm -rf rootfs.img new_rootfs.img
+          rm -rf /tmp/btrfs_root rootfs.img new_rootfs.img
 
           # 重新压缩镜像
-          gzip $IMG_FILE
+                gzip $IMG_FILE
 
           echo "Final directory contents:"
           ls -la
@@ -236,6 +250,8 @@ jobs:
           # 验证最终的镜像文件
           echo "Verifying final image file:"
           file openwrt_rockchip_smart-am40_k5.15.162_*.img.gz
+
+
 
 
       - name: Upload the packaged OpenWrt
