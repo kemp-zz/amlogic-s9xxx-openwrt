@@ -158,12 +158,12 @@ jobs:
           kernel_usage: ${{ inputs.kernel_usage }}
           builder_name: ${{ inputs.builder_name }}
 
-      - name: Create symbolic links for kernel files
+      - name: Modify OpenWrt image
         if: ${{ env.PACKAGED_STATUS }} == 'success' && !cancelled()
         run: |
           # 进入 OpenWrt 的打包目录
           cd ${{ env.PACKAGED_OUTPUTPATH }} || (echo "Failed to change directory" && exit 1)
-      
+
           echo "Current working directory: $(pwd)"
           echo "Directory contents:"
           ls -la
@@ -171,46 +171,64 @@ jobs:
           # 解压镜像文件
           gzip -d openwrt_rockchip_smart-am40_k5.15.162_*.img.gz
 
-          # 挂载镜像文件
-          LOOP_DEVICE=$(losetup -f)
-          losetup $LOOP_DEVICE openwrt_rockchip_smart-am40_k5.15.162_*.img
-          partprobe $LOOP_DEVICE
-          mkdir -p /mnt/openwrt
-          mount ${LOOP_DEVICE}p2 /mnt/openwrt
+          # 获取镜像文件名
+          IMG_FILE=$(ls openwrt_rockchip_smart-am40_k5.15.162_*.img)
 
-          # 创建符号链接
-          if [ -d "/mnt/openwrt/boot" ]; then
-            ln -sf vmlinuz-5.15.162-ophub /mnt/openwrt/boot/vmlinuz-5.15.162 || echo "Failed to create vmlinuz symlink"
+          # 使用 fdisk 查看分区信息
+          fdisk -l $IMG_FILE
+
+          # 假设第二个分区是我们需要修改的分区，获取其起始位置
+          PARTITION_START=$(fdisk -l $IMG_FILE | grep "${IMG_FILE}2" | awk '{print $2}')
+          SECTOR_SIZE=$(fdisk -l $IMG_FILE | grep "Sector size" | awk '{print $4}')
+          OFFSET=$((PARTITION_START * SECTOR_SIZE))
+
+          echo "Partition start: $PARTITION_START"
+          echo "Sector size: $SECTOR_SIZE"
+          echo "Offset: $OFFSET"
+
+          # 创建一个临时目录来挂载文件系统
+          mkdir temp_mount
+    
+          # 提取文件系统到临时目录
+          dd if=$IMG_FILE of=temp_fs bs=512 skip=$PARTITION_START
+          mount -o loop temp_fs temp_mount
+
+          # 在提取的文件系统中创建符号链接
+          if [ -d "temp_mount/boot" ]; then
+            ln -sf vmlinuz-5.15.162-ophub temp_mount/boot/vmlinuz-5.15.162 || echo "Failed to create vmlinuz symlink"
           else
             echo "boot directory not found"
           fi
 
-          if [ -d "/mnt/openwrt/lib/modules" ]; then
-            ln -sf 5.15.162-ophub /mnt/openwrt/lib/modules/5.15.162 || echo "Failed to create modules symlink"
+          if [ -d "temp_mount/lib/modules" ]; then
+            ln -sf 5.15.162-ophub temp_mount/lib/modules/5.15.162 || echo "Failed to create modules symlink"
           else
             echo "lib/modules directory not found"
           fi
 
-          if [ -d "/mnt/openwrt/usr/src" ]; then
-            ln -sf linux-headers-5.15.162-ophub /mnt/openwrt/usr/src/linux-headers-5.15.162 || echo "Failed to create headers symlink"
-          else
-            echo "usr/src directory not found"
+          if [ -d "temp_mount/usr/src" ]; then
+            ln -sf linux-headers-5.15.162-ophub temp_mount/usr/src/linux-headers-5.15.162 || echo "Failed to create headers symlink"
           fi
 
           # 显示创建的符号链接
           echo "Boot directory:"
-          ls -l /mnt/openwrt/boot/ || echo "boot directory not accessible"
+          ls -l temp_mount/boot/ || echo "boot directory not accessible"
           echo "Modules directory:"
-          ls -l /mnt/openwrt/lib/modules/ || echo "lib/modules directory not accessible"
+          ls -l temp_mount/lib/modules/ || echo "lib/modules directory not accessible"
           echo "Headers directory:"
-          ls -l /mnt/openwrt/usr/src/ || echo "usr/src directory not accessible"
+          ls -l temp_mount/usr/src/ || echo "usr/src directory not accessible"
 
-          # 卸载镜像
-          umount /mnt/openwrt
-          losetup -d $LOOP_DEVICE
+          # 卸载文件系统
+          umount temp_mount
+
+          # 将修改后的文件系统写回镜像文件
+          dd if=temp_fs of=$IMG_FILE bs=512 seek=$PARTITION_START conv=notrunc
+
+          # 清理临时文件
+          rm -rf temp_mount temp_fs
 
           # 重新压缩镜像
-          gzip openwrt_rockchip_smart-am40_k5.15.162_*.img
+          gzip $IMG_FILE
 
           echo "Final directory contents:"
           ls -la
