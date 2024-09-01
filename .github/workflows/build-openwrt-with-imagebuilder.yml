@@ -1,4 +1,4 @@
-
+zz
 
 name: Build OpenWrt with ImageBuilder
 
@@ -164,7 +164,7 @@ jobs:
         if: ${{ env.PACKAGED_STATUS }} == 'success' && !cancelled()
         run: |
           # 进入 OpenWrt 的根文件系统目录
-          cd /home/runner/work/_actions/ophub/amlogic-s9xxx-openwrt/main/openwrt/openwrt-armvirt/
+          cd /home/runner/work/_actions/kemp-zz/amlogic-s9xxx-openwrt/main/openwrt/openwrt-armvirt/
           
           # 创建符号链接
           sudo ln -sf boot/vmlinuz-${{ inputs.openwrt_kernel }}-${{ inputs.builder_name }} boot/vmlinuz-${{ inputs.openwrt_kernel }}
