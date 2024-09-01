@@ -158,25 +158,61 @@ jobs:
           kernel_usage: ${{ inputs.kernel_usage }}
           builder_name: ${{ inputs.builder_name }}
 
-      - name: Create symbolic links for kernel files
+      - name: Locate and create symbolic links for kernel files
         if: ${{ env.PACKAGED_STATUS }} == 'success' && !cancelled()
         run: |
-          # 进入 OpenWrt 的根文件系统目录
-          cd /home/runner/work/_actions/kemp-zz/amlogic-s9xxx-openwrt/main/openwrt/openwrt-armvirt/
+          # 列出工作目录的内容
+          echo "Current directory structure:"
+          pwd
+          ls -R /home/runner/work
+
+          # 尝试定位 OpenWrt 目录
+          OPENWRT_ROOT=$(find /home/runner/work -type d -name "openwrt-armvirt" 2>/dev/null | head -n 1)
           
-          # 创建符号链接
-          sudo ln -sf boot/vmlinuz-${{ inputs.openwrt_kernel }}-${{ inputs.builder_name }} boot/vmlinuz-${{ inputs.openwrt_kernel }}
-          sudo ln -sf lib/modules/${{ inputs.openwrt_kernel }}-${{ inputs.builder_name }} lib/modules/${{ inputs.openwrt_kernel }}
-          
-          # 如果存在 header 文件，也创建相应的符号链接
-          if [ -d "usr/src/linux-headers-${{ inputs.openwrt_kernel }}-${{ inputs.builder_name }}" ]; then
-            sudo ln -sf usr/src/linux-headers-${{ inputs.openwrt_kernel }}-${{ inputs.builder_name }} usr/src/linux-headers-${{ inputs.openwrt_kernel }}
+          if [ -z "$OPENWRT_ROOT" ]; then
+            echo "Could not find openwrt-armvirt directory. Searching for alternatives..."
+            OPENWRT_ROOT=$(find /home/runner/work -type d -name "openwrt" 2>/dev/null | head -n 1)
           fi
-          
+
+          if [ -z "$OPENWRT_ROOT" ]; then
+            echo "Error: Could not locate OpenWrt root directory"
+            exit 1
+          fi
+
+          echo "OpenWrt root directory found at: $OPENWRT_ROOT"
+          cd "$OPENWRT_ROOT" || exit 1
+
+          echo "Contents of OpenWrt root directory:"
+          ls -la
+
+          # 创建符号链接
+          if [ -f "boot/vmlinuz-${{ inputs.openwrt_kernel }}-${{ inputs.builder_name }}" ]; then
+            sudo ln -sf "boot/vmlinuz-${{ inputs.openwrt_kernel }}-${{ inputs.builder_name }}" "boot/vmlinuz-${{ inputs.openwrt_kernel }}"
+          else
+            echo "Warning: vmlinuz file not found"
+          fi
+
+          if [ -d "lib/modules/${{ inputs.openwrt_kernel }}-${{ inputs.builder_name }}" ]; then
+            sudo ln -sf "lib/modules/${{ inputs.openwrt_kernel }}-${{ inputs.builder_name }}" "lib/modules/${{ inputs.openwrt_kernel }}"
+          else
+            echo "Warning: modules directory not found"
+          fi
+
+          if [ -d "usr/src/linux-headers-${{ inputs.openwrt_kernel }}-${{ inputs.builder_name }}" ]; then
+            sudo ln -sf "usr/src/linux-headers-${{ inputs.openwrt_kernel }}-${{ inputs.builder_name }}" "usr/src/linux-headers-${{ inputs.openwrt_kernel }}"
+          else
+            echo "Warning: linux-headers directory not found"
+          fi
+
           # 显示创建的符号链接
-          ls -l boot/
-          ls -l lib/modules/
-          ls -l usr/src/ || true
+          echo "Boot directory contents:"
+          ls -l boot/ || echo "boot directory not found"
+          
+          echo "Modules directory contents:"
+          ls -l lib/modules/ || echo "modules directory not found"
+          
+          echo "Headers directory contents:"
+          ls -l usr/src/ || echo "src directory not found"
 
       - name: Upload the packaged OpenWrt
         uses: ncipollo/release-action@main
