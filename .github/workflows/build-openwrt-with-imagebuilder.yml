@@ -162,39 +162,58 @@ jobs:
         if: ${{ env.PACKAGED_STATUS }} == 'success' && !cancelled()
         run: |
           # 进入 OpenWrt 的打包目录
-          cd /home/runner/work/_actions/ophub/amlogic-s9xxx-openwrt/main/openwrt/openwrt-armvirt/
+          cd ${{ env.PACKAGED_OUTPUTPATH }} || (echo "Failed to change directory" && exit 1)
+      
+          echo "Current working directory: $(pwd)"
+          echo "Directory contents:"
+          ls -la
 
-          # 显示目录内容
-          echo "Current directory contents:"
-          ls -R
+          # 解压镜像文件
+          gzip -d openwrt_rockchip_smart-am40_k5.15.162_*.img.gz
+
+          # 挂载镜像文件
+          LOOP_DEVICE=$(losetup -f)
+          losetup $LOOP_DEVICE openwrt_rockchip_smart-am40_k5.15.162_*.img
+          partprobe $LOOP_DEVICE
+          mkdir -p /mnt/openwrt
+          mount ${LOOP_DEVICE}p2 /mnt/openwrt
 
           # 创建符号链接
-          if [ -d "boot" ]; then
-            sudo ln -sf vmlinuz-5.15.162-ophub boot/vmlinuz-5.15.162 || echo "Failed to create vmlinuz symlink"
+          if [ -d "/mnt/openwrt/boot" ]; then
+            ln -sf vmlinuz-5.15.162-ophub /mnt/openwrt/boot/vmlinuz-5.15.162 || echo "Failed to create vmlinuz symlink"
           else
             echo "boot directory not found"
           fi
 
-          if [ -d "lib/modules" ]; then
-            sudo ln -sf 5.15.162-ophub lib/modules/5.15.162 || echo "Failed to create modules symlink"
+          if [ -d "/mnt/openwrt/lib/modules" ]; then
+            ln -sf 5.15.162-ophub /mnt/openwrt/lib/modules/5.15.162 || echo "Failed to create modules symlink"
           else
             echo "lib/modules directory not found"
           fi
 
-          # 如果存在 header 文件，也创建相应的符号链接
-          if [ -d "usr/src" ]; then
-            sudo ln -sf linux-headers-5.15.162-ophub usr/src/linux-headers-5.15.162 || echo "Failed to create headers symlink"
+          if [ -d "/mnt/openwrt/usr/src" ]; then
+            ln -sf linux-headers-5.15.162-ophub /mnt/openwrt/usr/src/linux-headers-5.15.162 || echo "Failed to create headers symlink"
           else
             echo "usr/src directory not found"
           fi
 
           # 显示创建的符号链接
           echo "Boot directory:"
-          ls -l boot/ || echo "boot directory not accessible"
+          ls -l /mnt/openwrt/boot/ || echo "boot directory not accessible"
           echo "Modules directory:"
-          ls -l lib/modules/ || echo "lib/modules directory not accessible"
+          ls -l /mnt/openwrt/lib/modules/ || echo "lib/modules directory not accessible"
           echo "Headers directory:"
-          ls -l usr/src/ || echo "usr/src directory not accessible"
+          ls -l /mnt/openwrt/usr/src/ || echo "usr/src directory not accessible"
+
+          # 卸载镜像
+          umount /mnt/openwrt
+          losetup -d $LOOP_DEVICE
+
+          # 重新压缩镜像
+          gzip openwrt_rockchip_smart-am40_k5.15.162_*.img
+
+          echo "Final directory contents:"
+          ls -la
 
       - name: Upload the packaged OpenWrt
         uses: ncipollo/release-action@main
