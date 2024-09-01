@@ -179,20 +179,20 @@ jobs:
             fi
           done
 
-    if [ "$SUCCESS" = false ]; then
-      echo "Failed to download Packages.manifest after $MAX_RETRIES attempts"
-      exit 1
-    fi
+          if [ "$SUCCESS" = false ]; then
+            echo "Failed to download Packages.manifest after $MAX_RETRIES attempts"
+            exit 1
+          fi
 
-    # 提取 vermagic 值
-    KERNEL_VERSION=$(grep -oP 'kernel $$=\K[^)]+' Packages.manifest | head -1)
-    if [ -z "$KERNEL_VERSION" ]; then
-      echo "Failed to extract kernel version from Packages.manifest"
-      exit 1
-    fi
+          # 提取 vermagic 值
+          KERNEL_VERSION=$(grep -oP 'kernel $$=\K[^)]+' Packages.manifest | head -1)
+          if [ -z "$KERNEL_VERSION" ]; then
+            echo "Failed to extract kernel version from Packages.manifest"
+            exit 1
+          fi
 
-    echo "KERNEL_VERSION=$KERNEL_VERSION" >> $GITHUB_ENV
-    echo "Extracted kernel version: $KERNEL_VERSION"
+          echo "KERNEL_VERSION=$KERNEL_VERSION" >> $GITHUB_ENV
+          echo "Extracted kernel version: $KERNEL_VERSION"
 
       - name: Modify OpenWrt image
         if: ${{ env.PACKAGED_STATUS }} == 'success' && !cancelled()
