@@ -158,6 +158,9 @@ jobs:
           kernel_usage: ${{ inputs.kernel_usage }}
           builder_name: ${{ inputs.builder_name }}
 
+      - name: Install squashfs-tools
+        run: sudo apt-get update && sudo apt-get install -y squashfs-tools
+
       - name: Modify OpenWrt image
         if: ${{ env.PACKAGED_STATUS }} == 'success' && !cancelled()
         run: |
@@ -186,46 +189,45 @@ jobs:
           echo "Sector size: $SECTOR_SIZE"
           echo "Offset: $OFFSET"
 
-          # 创建一个临时目录来挂载文件系统
-          mkdir temp_mount
-    
-          # 提取文件系统到临时目录
-          dd if=$IMG_FILE of=temp_fs bs=512 skip=$PARTITION_START
-          mount -o loop temp_fs temp_mount
+          # 提取 SquashFS 文件系统
+          dd if=$IMG_FILE of=rootfs.squashfs bs=512 skip=$PARTITION_START
+
+          # 解压 SquashFS 文件系统
+          unsquashfs rootfs.squashfs
 
           # 在提取的文件系统中创建符号链接
-          if [ -d "temp_mount/boot" ]; then
-            ln -sf vmlinuz-5.15.162-ophub temp_mount/boot/vmlinuz-5.15.162 || echo "Failed to create vmlinuz symlink"
+          if [ -d "squashfs-root/boot" ]; then
+            ln -sf vmlinuz-5.15.162-ophub squashfs-root/boot/vmlinuz-5.15.162 || echo "Failed to create vmlinuz symlink"
           else
             echo "boot directory not found"
           fi
 
-          if [ -d "temp_mount/lib/modules" ]; then
-            ln -sf 5.15.162-ophub temp_mount/lib/modules/5.15.162 || echo "Failed to create modules symlink"
+          if [ -d "squashfs-root/lib/modules" ]; then
+            ln -sf 5.15.162-ophub squashfs-root/lib/modules/5.15.162 || echo "Failed to create modules symlink"
           else
             echo "lib/modules directory not found"
           fi
 
-          if [ -d "temp_mount/usr/src" ]; then
-            ln -sf linux-headers-5.15.162-ophub temp_mount/usr/src/linux-headers-5.15.162 || echo "Failed to create headers symlink"
+          if [ -d "squashfs-root/usr/src" ]; then
+            ln -sf linux-headers-5.15.162-ophub squashfs-root/usr/src/linux-headers-5.15.162 || echo "Failed to create headers symlink"
           fi
 
           # 显示创建的符号链接
-          echo "Boot directory:"
-          ls -l temp_mount/boot/ || echo "boot directory not accessible"
+               echo "Boot directory:"
+          ls -l squashfs-root/boot/ || echo "boot directory not accessible"
           echo "Modules directory:"
-          ls -l temp_mount/lib/modules/ || echo "lib/modules directory not accessible"
+          ls -l squashfs-root/lib/modules/ || echo "lib/modules directory not accessible"
           echo "Headers directory:"
-          ls -l temp_mount/usr/src/ || echo "usr/src directory not accessible"
+          ls -l squashfs-root/usr/src/ || echo "usr/src directory not accessible"
 
-          # 卸载文件系统
-          umount temp_mount
+          # 重新创建 SquashFS 文件系统
+          mksquashfs squashfs-root new_rootfs.squashfs -comp xz -b 256k
 
-          # 将修改后的文件系统写回镜像文件
-          dd if=temp_fs of=$IMG_FILE bs=512 seek=$PARTITION_START conv=notrunc
+          # 将新的文件系统写回镜像文件
+          dd if=new_rootfs.squashfs of=$IMG_FILE bs=512 seek=$PARTITION_START conv=notrunc
 
           # 清理临时文件
-          rm -rf temp_mount temp_fs
+          rm -rf squashfs-root rootfs.squashfs new_rootfs.squashfs
 
           # 重新压缩镜像
           gzip $IMG_FILE
