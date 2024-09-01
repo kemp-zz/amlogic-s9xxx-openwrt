@@ -159,7 +159,7 @@ jobs:
           builder_name: ${{ inputs.builder_name }}
 
       - name: Install necessary tools
-        run: sudo apt-get update && sudo apt-get install -y squashfs-tools e2fsprogs xz-utils cpio btrfs-progs
+        run: sudo apt-get update && sudo apt-get install -y btrfs-progs
 
       - name: Modify OpenWrt image
         if: ${{ env.PACKAGED_STATUS }} == 'success' && !cancelled()
@@ -198,61 +198,34 @@ jobs:
 
           if [[ $FS_TYPE == *"BTRFS"* ]]; then
             # BTRFS 文件系统处理
-            mkdir rootfs_mount
-            mount -o loop,subvol=/ rootfs.img rootfs_mount
-            ROOTFS_DIR="rootfs_mount"
-          elif [[ $FS_TYPE == *"Squashfs"* ]]; then
-            # SquashFS 文件系统处理
-            unsquashfs rootfs.img
-            ROOTFS_DIR="squashfs-root"
-          elif [[ $FS_TYPE == *"ext4"* ]]; then
-            # ext4 文件系统处理
-            mkdir rootfs_mount
-            mount -o loop rootfs.img rootfs_mount
-            ROOTFS_DIR="rootfs_mount"
+            echo "Processing BTRFS filesystem"
+      
+            # 创建符号链接
+            btrfs restore -i -o /boot/vmlinuz-5.15.162-ophub=/boot/vmlinuz-5.15.162 rootfs.img /tmp/btrfs_root
+            btrfs restore -i -o /lib/modules/5.15.162-ophub=/lib/modules/5.15.162 rootfs.img /tmp/btrfs_root
+
+            # 显示创建的符号链接
+            echo "Contents of /boot:"
+            btrfs restore -l rootfs.img /tmp/btrfs_root | grep "/boot/vmlinuz-5.15.162"
+            echo "Contents of /lib/modules:"
+            btrfs restore -l rootfs.img /tmp/btrfs_root | grep "/lib/modules/5.15.162"
+
+            # 显示根目录结构
+            echo "Root directory structure:"
+            btrfs restore -l rootfs.img /tmp/btrfs_root | sed -n 's/^/  /p' | head -n 50
+
+            # 不需要重新打包，直接使用原始镜像
+            cp rootfs.img new_rootfs.img
           else
             echo "Unsupported file system type: $FS_TYPE"
             exit 1
-          fi
-
-          # 在提取的文件系统中创建符号链接
-          if [ -d "$ROOTFS_DIR/boot" ]; then
-            ln -sf vmlinuz-5.15.162-ophub $ROOTFS_DIR/boot/vmlinuz-5.15.162 || echo "Failed to create vmlinuz symlink"
-            echo "Contents of /boot:"
-            ls -l $ROOTFS_DIR/boot/
-          else
-            echo "boot directory not found"
-          fi
-
-          if [ -d "$ROOTFS_DIR/lib/modules" ]; then
-            ln -sf 5.15.162-ophub $ROOTFS_DIR/lib/modules/5.15.162 || echo "Failed to create modules symlink"
-            echo "Contents of /lib/modules:"
-            ls -l $ROOTFS_DIR/lib/modules/
-          else
-            echo "lib/modules directory not found"
-          fi
-      
-          # 显示根目录结构（忽略权限错误）
-          echo "Root directory structure:"
-          find $ROOTFS_DIR -maxdepth 3 -type d 2>/dev/null | sort | sed 's|[^/]*/|  |g;s|  $$[^/]$$|- \1|g'
-
-          # 重新打包文件系统
-          if [[ $FS_TYPE == *"BTRFS"* ]]; then
-            umount rootfs_mount
-            # BTRFS 不需要重新打包，直接使用原始镜像
-            cp rootfs.img new_rootfs.img
-          elif [[ $FS_TYPE == *"Squashfs"* ]]; then
-            mksquashfs $ROOTFS_DIR new_rootfs.img -comp xz -b 256k
-          elif [[ $FS_TYPE == *"ext4"* ]]; then
-            umount rootfs_mount
-            cp rootfs.img new_rootfs.img
           fi
 
           # 将新的文件系统写回镜像文件
           dd if=new_rootfs.img of=$IMG_FILE bs=512 seek=$PARTITION_START conv=notrunc
 
           # 清理临时文件
-          rm -rf $ROOTFS_DIR rootfs.img new_rootfs.img
+          rm -rf rootfs.img new_rootfs.img
 
           # 重新压缩镜像
           gzip $IMG_FILE
@@ -263,6 +236,7 @@ jobs:
           # 验证最终的镜像文件
           echo "Verifying final image file:"
           file openwrt_rockchip_smart-am40_k5.15.162_*.img.gz
+
 
       - name: Upload the packaged OpenWrt
         uses: ncipollo/release-action@main
