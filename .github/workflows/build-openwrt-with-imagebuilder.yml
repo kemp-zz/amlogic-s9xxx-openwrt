@@ -214,57 +214,55 @@ jobs:
             echo "Unsupported file system type: $FS_TYPE"
             exit 1
           fi
-      
+
           # 在提取的文件系统中创建符号链接
           if [ -d "$ROOTFS_DIR/boot" ]; then
             sudo ln -sf vmlinuz-5.15.162-ophub $ROOTFS_DIR/boot/vmlinuz-5.15.162 || echo "Failed to create vmlinuz symlink"
+            echo "Contents of /boot:"
+            ls -l $ROOTFS_DIR/boot/
           else
             echo "boot directory not found"
           fi
 
           if [ -d "$ROOTFS_DIR/lib/modules" ]; then
             sudo ln -sf 5.15.162-ophub $ROOTFS_DIR/lib/modules/5.15.162 || echo "Failed to create modules symlink"
+            echo "Contents of /lib/modules:"
+            ls -l $ROOTFS_DIR/lib/modules/
           else
             echo "lib/modules directory not found"
           fi
 
-          if [ -d "$ROOTFS_DIR/usr/src" ]; then
-            sudo ln -sf linux-headers-5.15.162-ophub $ROOTFS_DIR/usr/src/linux-headers-5.15.162 || echo "Failed to create headers symlink"
+          # 显示根目录结构
+          echo "Root directory structure:"
+          ls -R $ROOTFS_DIR | grep ":$" | sed -e 's/:$//' -e 's/[^-][^\/]*\//  /g' -e 's/^/    /' -e 's/-/|/'
+
+          # 重新打包文件系统
+          if [[ $FS_TYPE == *"BTRFS"* ]]; then
+            sudo umount rootfs_mount
+            # BTRFS 不需要重新打包，直接使用原始镜像
+            cp rootfs.img new_rootfs.img
+          elif [[ $FS_TYPE == *"Squashfs"* ]]; then
+            mksquashfs $ROOTFS_DIR new_rootfs.img -comp xz -b 256k
+          elif [[ $FS_TYPE == *"ext4"* ]]; then
+            sudo umount rootfs_mount
+            cp rootfs.img new_rootfs.img
           fi
 
-          # 显示创建的符号链接
-          # 显示创建的符号链接
-            echo "Boot directory:"
-            ls -l $ROOTFS_DIR/boot/ || echo "boot directory not accessible"
-            echo "Modules directory:"
-            ls -l $ROOTFS_DIR/lib/modules/ || echo "lib/modules directory not accessible"
-            echo "Headers directory:"
-            ls -l $ROOTFS_DIR/usr/src/ || echo "usr/src directory not accessible"
+          # 将新的文件系统写回镜像文件
+          dd if=new_rootfs.img of=$IMG_FILE bs=512 seek=$PARTITION_START conv=notrunc
 
-            # 重新打包文件系统
-            if [[ $FS_TYPE == *"BTRFS"* ]]; then
-              sudo umount rootfs_mount
-              # BTRFS 不需要重新打包，直接使用原始镜像
-              cp rootfs.img new_rootfs.img
-            elif [[ $FS_TYPE == *"Squashfs"* ]]; then
-              mksquashfs $ROOTFS_DIR new_rootfs.img -comp xz -b 256k
-            elif [[ $FS_TYPE == *"ext4"* ]]; then
-              sudo umount rootfs_mount
-              cp rootfs.img new_rootfs.img
-            fi
-        
-            # 将新的文件系统写回镜像文件
-            dd if=new_rootfs.img of=$IMG_FILE bs=512 seek=$PARTITION_START conv=notrunc
+          # 清理临时文件
+          rm -rf $ROOTFS_DIR rootfs.img new_rootfs.img
 
-            # 清理临时文件
-            rm -rf $ROOTFS_DIR rootfs.img new_rootfs.img
+          # 重新压缩镜像
+          gzip $IMG_FILE
+      
+          echo "Final directory contents:"
+          ls -la
 
-            # 重新压缩镜像
-            gzip $IMG_FILE
-
-            echo "Final directory contents:"
-            ls -la
-
+          # 验证最终的镜像文件
+          echo "Verifying final image file:"
+          file openwrt_rockchip_smart-am40_k5.15.162_*.img.gz
 
       - name: Upload the packaged OpenWrt
         uses: ncipollo/release-action@main
