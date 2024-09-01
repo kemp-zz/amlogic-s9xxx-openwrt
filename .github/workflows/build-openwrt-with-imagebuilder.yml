@@ -163,10 +163,36 @@ jobs:
 
       - name: Extract vermagic from Packages.manifest
         run: |
-          curl -O https://mirrors.vsean.net/openwrt/releases/23.05.3/targets/armsr/armv8/kmods/5.15.162-1-7d9483ff60109a7caf36266e8917014e/Packages.manifest
-          KERNEL_VERSION=$(grep -oP 'kernel $$=\K[^)]+' Packages.manifest | head -1)
-          echo "KERNEL_VERSION=$KERNEL_VERSION" >> $GITHUB_ENV
-          echo "Extracted kernel version: $KERNEL_VERSION"
+          MAX_RETRIES=5
+          RETRY_COUNT=0
+          SUCCESS=false
+
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ] && [ "$SUCCESS" = false ]; do
+            echo "Attempt $((RETRY_COUNT+1)) to download Packages.manifest"
+            if wget -q -O Packages.manifest https://mirrors.vsean.net/openwrt/releases/23.05.3/targets/armsr/armv8/kmods/5.15.162-1-7d9483ff60109a7caf36266e8917014e/Packages.manifest; then
+              echo "Download successful"
+              SUCCESS=true
+            else
+              echo "Download failed, retrying in 5 seconds..."
+              sleep 5
+              RETRY_COUNT=$((RETRY_COUNT+1))
+            fi
+          done
+
+    if [ "$SUCCESS" = false ]; then
+      echo "Failed to download Packages.manifest after $MAX_RETRIES attempts"
+      exit 1
+    fi
+
+    # 提取 vermagic 值
+    KERNEL_VERSION=$(grep -oP 'kernel $$=\K[^)]+' Packages.manifest | head -1)
+    if [ -z "$KERNEL_VERSION" ]; then
+      echo "Failed to extract kernel version from Packages.manifest"
+      exit 1
+    fi
+
+    echo "KERNEL_VERSION=$KERNEL_VERSION" >> $GITHUB_ENV
+    echo "Extracted kernel version: $KERNEL_VERSION"
 
       - name: Modify OpenWrt image
         if: ${{ env.PACKAGED_STATUS }} == 'success' && !cancelled()
