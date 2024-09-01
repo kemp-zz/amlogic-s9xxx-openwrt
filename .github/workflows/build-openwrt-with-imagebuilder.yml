@@ -190,10 +190,7 @@ jobs:
           echo "Offset: $OFFSET"
 
           # 提取文件系统
-          dd if=$IMG_FILE of=rootfs.img.xz bs=512 skip=$PARTITION_START
-
-          # 尝试解压 xz
-          xz -d rootfs.img.xz
+          dd if=$IMG_FILE of=rootfs.img bs=512 skip=$PARTITION_START
 
           # 检查文件系统类型
           FS_TYPE=$(file -b rootfs.img)
@@ -201,73 +198,7 @@ jobs:
 
           if [[ $FS_TYPE == *"Squashfs"* ]]; then
             # SquashFS 文件系统处理
-            unsquashfs rootfs.img
-            ROOTFS_DIR="squashfs-root"
-          elif [[ $FS_TYPE == *"ext4"* ]]; then
-            # ext4 文件系统处理
-            mkdir rootfs_mount
-            sudo mount -o loop rootfs.img rootfs_mount
-            ROOTFS_DIR="rootfs_mount"
-          elif [[ $FS_TYPE == *"cpio archive"* ]]; then
-            # cpio 归档处理
-            mkdir rootfs_cpio
-            cd rootfs_cpio
-            cpio -idm < ../rootfs.img
-            cd ..
-            ROOTFS_DIR="rootfs_cpio"
-          else
-            echo "Unsupported file system type"
-            exit 1
-          fi
-
-          # 在提取的文件系统中创建符号链接
-          if [ -d "$ROOTFS_DIR/boot" ]; then
-            sudo ln -sf vmlinuz-5.15.162-ophub $ROOTFS_DIR/boot/vmlinuz-5.15.162 || echo "Failed to create vmlinuz symlink"
-          else
-            echo "boot directory not found"
-          fi
-
-          if [ -d "$ROOTFS_DIR/lib/modules" ]; then
-           sudo ln -sf 5.15.162-ophub $ROOTFS_DIR/lib/modules/5.15.162 || echo "Failed to create modules symlink"
-          else
-            echo "lib/modules directory not found"
-          fi
-
-          if [ -d "$ROOTFS_DIR/usr/src" ]; then
-            sudo ln -sf linux-headers-5.15.162-ophub $ROOTFS_DIR/usr/src/linux-headers-5.15.162 || echo "Failed to create headers symlink"
-          fi
-
-          # 显示创建的符号链接
-          echo "Boot directory:"
-          ls -l $ROOTFS_DIR/boot/ || echo "boot directory not accessible"
-          echo "Modules directory:"
-          ls -l $ROOTFS_DIR/lib/modules/ || echo "lib/modules directory not accessible"
-          echo "Headers directory:"
-          ls -l $ROOTFS_DIR/usr/src/ || echo "usr/src directory not accessible"
-
-          # 重新打包文件系统
-          if [[ $FS_TYPE == *"Squashfs"* ]]; then
-            mksquashfs $ROOTFS_DIR new_rootfs.img -comp xz -b 256k
-          elif [[ $FS_TYPE == *"ext4"* ]]; then
-            sudo umount rootfs_mount
-            cp rootfs.img new_rootfs.img
-          elif [[ $FS_TYPE == *"cpio archive"* ]]; then
-            cd $ROOTFS_DIR
-            find . | cpio -H newc -o | xz -9 --format=lzma > ../new_rootfs.img
-            cd ..
-          fi
-
-          # 将新的文件系统写回镜像文件
-          dd if=new_rootfs.img of=$IMG_FILE bs=512 seek=$PARTITION_START conv=notrunc
-
-          # 清理临时文件
-          rm -rf $ROOTFS_DIR rootfs.img new_rootfs.img
-
-          # 重新压缩镜像
-          xz -z $IMG_FILE
-
-          echo "Final directory contents:"
-          ls -la
+            unsquashfs root
       - name: Upload the packaged OpenWrt
         uses: ncipollo/release-action@main
         if: ${{ env.PACKAGED_STATUS }} == 'success' && !cancelled()
