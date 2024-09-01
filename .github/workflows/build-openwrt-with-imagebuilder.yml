@@ -161,96 +161,57 @@ jobs:
       - name: Install necessary tools
         run: sudo apt-get update && sudo apt-get install -y btrfs-progs
 
+      - name: Extract vermagic from Packages.manifest
+        run: |
+          curl -O https://mirrors.vsean.net/openwrt/releases/23.05.3/targets/armsr/armv8/kmods/5.15.162-1-7d9483ff60109a7caf36266e8917014e/Packages.manifest
+          KERNEL_VERSION=$(grep -oP 'kernel $$=\K[^)]+' Packages.manifest | head -1)
+          echo "KERNEL_VERSION=$KERNEL_VERSION" >> $GITHUB_ENV
+          echo "Extracted kernel version: $KERNEL_VERSION"
+
       - name: Modify OpenWrt image
         if: ${{ env.PACKAGED_STATUS }} == 'success' && !cancelled()
         run: |
-          # 进入 OpenWrt 的打包目录
-          cd ${{ env.PACKAGED_OUTPUTPATH }} || (echo "Failed to change directory" && exit 1)
-
-          echo "Current working directory: $(pwd)"
-          echo "Directory contents:"
-          ls -la
-
-          # 解压镜像文件
+          cd ${{ env.PACKAGED_OUTPUTPATH }}
           gzip -d openwrt_rockchip_smart-am40_k5.15.162_*.img.gz
-
-          # 获取镜像文件名
           IMG_FILE=$(ls openwrt_rockchip_smart-am40_k5.15.162_*.img)
-
-          # 使用 fdisk 查看分区信息
-          fdisk -l $IMG_FILE
-
-          # 假设第二个分区是我们需要修改的分区，获取其起始位置
+          
+          # 获取分区信息
           PARTITION_START=$(fdisk -l $IMG_FILE | grep "${IMG_FILE}2" | awk '{print $2}')
           SECTOR_SIZE=$(fdisk -l $IMG_FILE | grep "Sector size" | awk '{print $4}')
-          OFFSET=$((PARTITION_START * SECTOR_SIZE))
-
-          echo "Partition start: $PARTITION_START"
-          echo "Sector size: $SECTOR_SIZE"
-          echo "Offset: $OFFSET"
-
-          # 提取文件系统
-          dd if=$IMG_FILE of=rootfs.img bs=512 skip=$PARTITION_START
-
-          # 检查文件系统类型
-          FS_TYPE=$(file -b rootfs.img)
-          echo "File system type: $FS_TYPE"
-
-          if [[ $FS_TYPE == *"BTRFS"* ]]; then
-            # BTRFS 文件系统处理
-            echo "Processing BTRFS filesystem"
-      
-            # 创建临时挂载点
-            mkdir -p /tmp/btrfs_root
-            sudo mount -o loop,subvol=/ rootfs.img /tmp/btrfs_root
-
-            # 创建符号链接
-            sudo ln -sf /lib/modules/5.15.162-ophub /tmp/btrfs_root/lib/modules/5.15.162
-            sudo ln -sf /boot/vmlinuz-5.15.162-ophub /tmp/btrfs_root/boot/vmlinuz-5.15.162
-
-            # 更新模块依赖关系
-            sudo depmod -a -b /tmp/btrfs_root 5.15.162-ophub
-
-            # 显示创建的符号链接
-            echo "Contents of /boot:"
-            ls -l /tmp/btrfs_root/boot | grep "vmlinuz-5.15.162"
-            echo "Contents of /lib/modules:"
-            ls -l /tmp/btrfs_root/lib/modules | grep "5.15.162"
-
-            # 显示模块信息
-            echo "Module information:"
-            sudo find /tmp/btrfs_root/lib/modules/5.15.162-ophub -name "*.ko" | xargs -I {} modinfo {}
-
-            # 显示根目录结构
-            echo "Root directory structure:"
-            sudo find /tmp/btrfs_root -maxdepth 3 -type d | sed 's|/tmp/btrfs_root||' | sort
-
-            # 卸载文件系统
-            sudo umount /tmp/btrfs_root
-      
-            # 不需要重新打包，直接使用原始镜像
-            cp rootfs.img new_rootfs.img
-          else
-            echo "Unsupported file system type: $FS_TYPE"
-            exit 1
+          
+          # 挂载镜像
+          sudo mkdir -p /mnt/openwrt
+          LOOP_DEVICE=$(sudo losetup -f)
+          sudo losetup -P $LOOP_DEVICE $IMG_FILE
+          sudo mount "${LOOP_DEVICE}p2" /mnt/openwrt
+          
+          # 创建符号链接
+          if [ -d "/mnt/openwrt/boot" ]; then
+            sudo ln -sf vmlinuz-5.15.162-ophub /mnt/openwrt/boot/vmlinuz-5.15.162
           fi
-
-          # 将新的文件系统写回镜像文件
-          dd if=new_rootfs.img of=$IMG_FILE bs=512 seek=$PARTITION_START conv=notrunc
-
-          # 清理临时文件
-          rm -rf /tmp/btrfs_root rootfs.img new_rootfs.img
-
+          if [ -d "/mnt/openwrt/lib/modules" ]; then
+            sudo ln -sf 5.15.162-ophub /mnt/openwrt/lib/modules/5.15.162
+          fi
+          
+          # 更新内核模块的 vermagic
+          sudo sed -i "s/vermagic=.*/vermagic=${{ env.KERNEL_VERSION }}/" /mnt/openwrt/lib/modules/5.15.162-ophub/*.ko
+          
+          # 显示更改
+          echo "Updated boot symlink:"
+          ls -l /mnt/openwrt/boot | grep vmlinuz-5.15.162
+          echo "Updated modules symlink:"
+          ls -l /mnt/openwrt/lib/modules | grep 5.15.162
+          echo "Updated vermagic in modules:"
+          grep vermagic /mnt/openwrt/lib/modules/5.15.162-ophub/*.ko | head -n 5
+          
+          # 卸载镜像
+          sudo umount /mnt/openwrt
+          sudo losetup -d $LOOP_DEVICE
+          
           # 重新压缩镜像
-                gzip $IMG_FILE
-
-          echo "Final directory contents:"
-          ls -la
-
-          # 验证最终的镜像文件
-          echo "Verifying final image file:"
-          file openwrt_rockchip_smart-am40_k5.15.162_*.img.gz
-
+          gzip $IMG_FILE
+          
+          echo "OpenWrt image modified successfully"
 
 
 
