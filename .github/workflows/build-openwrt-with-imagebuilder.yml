@@ -1,5 +1,3 @@
-
-
 name: Build OpenWrt with ImageBuilder
 
 on:
