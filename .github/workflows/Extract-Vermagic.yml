@@ -1,0 +1,62 @@
+name: Extract Vermagic
+
+on:
+  workflow_dispatch:  # 允许手动触发
+  schedule:
+    - cron: '0 0 * * 0'  # 每周日运行一次
+
+jobs:
+  extract_vermagic:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Install required packages
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y zstd binutils
+
+    - name: Download and extract kernel debug files
+      run: |
+        wget https://mirrors.vsean.net/openwrt/releases/23.05.3/targets/armsr/armv8/kernel-debug.tar.zst
+        tar -I zstd -xvf kernel-debug.tar.zst
+
+    - name: Search for vermagic in kernel debug files
+      run: |
+        VERMAGIC_DEBUG=$(grep -r "vermagic=" . | head -n 1 | cut -d'=' -f2)
+        echo "VERMAGIC_DEBUG=$VERMAGIC_DEBUG" >> $GITHUB_ENV
+        echo "Vermagic from debug files: $VERMAGIC_DEBUG"
+
+    - name: Download and analyze kernel binary
+      run: |
+        wget https://mirrors.vsean.net/openwrt/releases/23.05.3/targets/armsr/armv8/immortalwrt-23.05.3-armsr-armv8-generic-kernel.bin
+        VERMAGIC_KERNEL=$(strings immortalwrt-23.05.3-armsr-armv8-generic-kernel.bin | grep -E '^[0-9]+\.[0-9]+\.[0-9]+ SMP' | head -n 1)
+        echo "VERMAGIC_KERNEL=$VERMAGIC_KERNEL" >> $GITHUB_ENV
+        echo "Vermagic from kernel binary: $VERMAGIC_KERNEL"
+
+    - name: Compare and output final vermagic
+      run: |
+        if [ -n "$VERMAGIC_DEBUG" ]; then
+          FINAL_VERMAGIC=$VERMAGIC_DEBUG
+        elif [ -n "$VERMAGIC_KERNEL" ]; then
+          FINAL_VERMAGIC=$VERMAGIC_KERNEL
+        else
+          echo "Failed to extract vermagic from both sources"
+          exit 1
+        fi
+        echo "Final vermagic: $FINAL_VERMAGIC"
+        echo "FINAL_VERMAGIC=$FINAL_VERMAGIC" >> $GITHUB_ENV
+
+    - name: Create vermagic file
+      run: |
+        echo "${{ env.FINAL_VERMAGIC }}" > vermagic.txt
+
+    - name: Upload vermagic as artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: vermagic
+        path: vermagic.txt
+
+    - name: Cleanup
+      run: |
+        rm -rf kernel-debug.tar.zst
+        rm -rf ./lib
+        rm -f immortalwrt-23.05.3-armsr-armv8-generic-kernel.bin
