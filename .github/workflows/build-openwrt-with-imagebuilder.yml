@@ -184,10 +184,24 @@ jobs:
             exit 1
           fi
 
-          # 提取 vermagic 值
+          # 检查文件是否为空
+          if [ ! -s Packages.manifest ]; then
+            echo "Error: Packages.manifest is empty"
+            exit 1
+          fi
+
+          # 显示文件内容的前几行
+          echo "First 10 lines of Packages.manifest:"
+          head -n 10 Packages.manifest
+
+          # 尝试提取 vermagic 值
           KERNEL_VERSION=$(grep -oP 'kernel $$=\K[^)]+' Packages.manifest | head -1)
           if [ -z "$KERNEL_VERSION" ]; then
             echo "Failed to extract kernel version from Packages.manifest"
+            echo "Grep result:"
+            grep -oP 'kernel $$=\K[^)]+' Packages.manifest
+            echo "Full file content:"
+            cat Packages.manifest
             exit 1
           fi
 
