@@ -161,50 +161,15 @@ jobs:
       - name: Install necessary tools
         run: sudo apt-get update && sudo apt-get install -y btrfs-progs
 
-      - name: Extract vermagic from Packages.manifest
+      - name: Extract vermagic from URL
         run: |
-          MAX_RETRIES=5
-          RETRY_COUNT=0
-          SUCCESS=false
-
-          while [ $RETRY_COUNT -lt $MAX_RETRIES ] && [ "$SUCCESS" = false ]; do
-            echo "Attempt $((RETRY_COUNT+1)) to download Packages.manifest"
-            if wget -q -O Packages.manifest https://mirrors.vsean.net/openwrt/releases/23.05.3/targets/armsr/armv8/kmods/5.15.162-1-7d9483ff60109a7caf36266e8917014e/Packages.manifest; then
-              echo "Download successful"
-              SUCCESS=true
-            else
-              echo "Download failed, retrying in 5 seconds..."
-              sleep 5
-              RETRY_COUNT=$((RETRY_COUNT+1))
-            fi
-          done
-
-          if [ "$SUCCESS" = false ]; then
-            echo "Failed to download Packages.manifest after $MAX_RETRIES attempts"
-            exit 1
-          fi
-
-          # 检查文件是否为空
-          if [ ! -s Packages.manifest ]; then
-            echo "Error: Packages.manifest is empty"
-            exit 1
-          fi
-
-          # 显示文件内容的前几行
-          echo "First 10 lines of Packages.manifest:"
-          head -n 10 Packages.manifest
-
-          # 尝试提取 vermagic 值
-          KERNEL_VERSION=$(grep -oP 'kernel $$=\K[^)]+' Packages.manifest | head -1)
+          URL="https://mirrors.vsean.net/openwrt/releases/23.05.3/targets/armsr/armv8/kmods/5.15.162-1-7d9483ff60109a7caf36266e8917014e/Packages.manifest"
+          KERNEL_VERSION=$(echo "$URL" | grep -oP '(?<=kmods/)[^/]+')
           if [ -z "$KERNEL_VERSION" ]; then
-            echo "Failed to extract kernel version from Packages.manifest"
-            echo "Grep result:"
-            grep -oP 'kernel $$=\K[^)]+' Packages.manifest
-            echo "Full file content:"
-            cat Packages.manifest
+            echo "Failed to extract kernel version from URL"
+            echo "URL: $URL"
             exit 1
           fi
-
           echo "KERNEL_VERSION=$KERNEL_VERSION" >> $GITHUB_ENV
           echo "Extracted kernel version: $KERNEL_VERSION"
 
