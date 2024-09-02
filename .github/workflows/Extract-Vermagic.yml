@@ -22,23 +22,35 @@ jobs:
         echo "Directory structure after extraction:"
         find . -type d | sort | sed 's/[^-][^\/]*\//  |/g; s/  |/, /g'
 
-        # 使用 objdump 提取 vermagic
-        echo "Attempting to extract vermagic using objdump..."
-        VERMAGIC=$(find . -name "*.ko" -print0 | xargs -0 objdump -s -j .modinfo 2>/dev/null | grep -oP 'vermagic=\K[^ ]+' | head -n 1)
-
-        # 如果 objdump 失败，尝试直接读取文件
+        # 尝试多种方法提取 vermagic
+        echo "Attempting to extract vermagic..."
+    
+        # 方法 1: 使用 strings 和 grep
+        VERMAGIC=$(find . -name "*.ko" -print0 | xargs -0 strings | grep -E '^[0-9]+\.[0-9]+\.[0-9]+[-_].*(SMP|PREEMPT)' | head -n 1)
+    
+        # 方法 2: 如果方法 1 失败，使用 hexdump 和 strings
         if [ -z "$VERMAGIC" ]; then
-          echo "objdump failed to extract vermagic, trying direct file read..."
-          VERMAGIC=$(find . -name "*.ko" -print0 | xargs -0 cat | grep -aoP 'vermagic=\K[^ ]+' | head -n 1)
+          echo "Trying hexdump method..."
+          VERMAGIC=$(find . -name "*.ko" -print0 | xargs -0 hexdump -v -e '1/1 "%02x"' | tr -d '\n' | strings | grep -E '^[0-9]+\.[0-9]+\.[0-9]+[-_].*(SMP|PREEMPT)' | head -n 1)
+        fi
+    
+        # 方法 3: 如果前两种方法都失败，尝试使用 readelf
+        if [ -z "$VERMAGIC" ]; then
+          echo "Trying readelf method..."
+          VERMAGIC=$(find . -name "*.ko" -print0 | xargs -0 readelf -p .modinfo 2>/dev/null | grep -E 'vermagic=.*' | sed 's/.*vermagic=//;s/[[:space:]]*$//' | head -n 1)
         fi
 
-        # 如果仍然失败，显示一个 .ko 文件的十六进制内容
+        # 如果所有方法都失败，显示一个 .ko 文件的详细信息
         if [ -z "$VERMAGIC" ]; then
-          echo "Failed to extract vermagic. Showing hexdump of a .ko file:"
+          echo "Failed to extract vermagic. Showing details of a .ko file:"
           SAMPLE_KO=$(find . -name "*.ko" | head -n 1)
           if [ -n "$SAMPLE_KO" ]; then
-            echo "Hexdump of $SAMPLE_KO:"
-            hexdump -C "$SAMPLE_KO" | grep -A 5 -B 5 "vermagic"
+            echo "File: $SAMPLE_KO"
+            file "$SAMPLE_KO"
+            echo "Hexdump of first 512 bytes:"
+            hexdump -C "$SAMPLE_KO" | head -n 32
+            echo "Strings output:"
+            strings "$SAMPLE_KO" | head -n 50
           else
             echo "No .ko files found."
           fi
@@ -54,11 +66,6 @@ jobs:
         # 清理文件
         rm -rf kernel-debug.tar.zst
         rm -rf ./debug
-    - name: Upload vermagic as artifact
-      uses: actions/upload-artifact@v2
-      with:
-        name: vermagic
-        path: vermagic.txt
 
     - name: Create vermagic release
       uses: softprops/action-gh-release@v1
