@@ -287,9 +287,9 @@ jobs:
           # Remove everything except the "bin" directory
           rm -rf $(ls . | grep -v "^bin$" | xargs) 2>/dev/null 
           # Create target directory for symbolic link
-          mkdir -p /home/runner/work/_actions/kemp=zz/amlogic-s9xxx-openwrt/main/openwrt 
+          mkdir -p /home/runner/work/_actions/kemp-zz/amlogic-s9xxx-openwrt/main/openwrt 
           # Create the symbolic link
-          ln -sf "$(pwd)/bin" /home/runner/work/_actions/kemp=zz/amlogic-s9xxx-openwrt/main/openwrt 
+          ln -sf "$(pwd)/bin" /home/runner/work/_actions/kemp-zz/amlogic-s9xxx-openwrt/main/openwrt 
           df -hT ${PWD}
 
       - name: Packaging OpenWrt
