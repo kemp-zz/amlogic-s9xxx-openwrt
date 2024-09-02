@@ -134,14 +134,6 @@ jobs:
           echo "RELEASES_TAG=${RELEASES_BRANCH/:/_}" >> ${GITHUB_ENV}
           echo "status=success" >> ${GITHUB_OUTPUT}
 
-      - name: Debug OpenWrt Rootfs
-        if: ${{ steps.imagebuilder.outputs.status }} == 'success' && !cancelled()
-        run: |
-          echo "Contents of imagebuilder directory:"
-          ls -R imagebuilder
-          echo "Contents of /builder directory:"
-          sudo ls -R /builder
-
       - name: Prepare OpenWrt rootfs
         if: ${{ steps.imagebuilder.outputs.status }} == 'success' && !cancelled()
         run: |
@@ -175,11 +167,19 @@ jobs:
           echo "Contents of /home/runner/work/_actions/kemp-zz/amlogic-s9xxx-openwrt/main/:"
           ls -la /home/runner/work/_actions/kemp-zz/amlogic-s9xxx-openwrt/main/
 
+      - name: Pre-build debug
+        run: |
+          echo "Current directory: $(pwd)"
+          echo "Contents of /builder/openwrt/bin/targets/armvirt/64/:"
+          ls -la /builder/openwrt/bin/targets/armvirt/64/
+          echo "Contents of /home/runner/work/_actions/kemp-zz/amlogic-s9xxx-openwrt/main:"
+          ls -la /home/runner/work/_actions/kemp-zz/amlogic-s9xxx-openwrt/main
+
       - name: Build OpenWrt firmware
         if: ${{ steps.imagebuilder.outputs.status }} == 'success' && !cancelled()
         uses: kemp-zz/amlogic-s9xxx-openwrt@main
         with:
-          openwrt_path: /builder/openwrt
+          openwrt_path: /builder/openwrt/bin/targets/armvirt/64/openwrt-armvirt-64-default-rootfs.tar.gz
           openwrt_board: ${{ inputs.openwrt_board }}
           openwrt_kernel: ${{ inputs.openwrt_kernel }}
           auto_kernel: ${{ inputs.auto_kernel }}
@@ -194,23 +194,12 @@ jobs:
         if: always()
         run: |
           echo "Current directory: $(pwd)"
-          echo "Contents of /builder/openwrt:"
-          ls -R /builder/openwrt
-          echo "Contents of /home/runner/work/_actions/kemp-zz/amlogic-s9xxx-openwrt/main:"
-          ls -R /home/runner/work/_actions/kemp-zz/amlogic-s9xxx-openwrt/main
-          echo "Contents of $GITHUB_WORKSPACE:"
-          ls -R $GITHUB_WORKSPACE
-      - name: Debug information
-        if: failure()
-        run: |
-          echo "Current directory: $(pwd)"
-          echo "GITHUB_WORKSPACE: $GITHUB_WORKSPACE"
-          echo "Contents of GITHUB_WORKSPACE:"
-          ls -la $GITHUB_WORKSPACE
-          echo "Contents of /builder/openwrt:"
-          ls -la /builder/openwrt
+          echo "Contents of /builder/openwrt/bin/targets/armvirt/64/:"
+          ls -la /builder/openwrt/bin/targets/armvirt/64/
           echo "Contents of /home/runner/work/_actions/kemp-zz/amlogic-s9xxx-openwrt/main:"
           ls -la /home/runner/work/_actions/kemp-zz/amlogic-s9xxx-openwrt/main
+          echo "Contents of $GITHUB_WORKSPACE:"
+          ls -la $GITHUB_WORKSPACE
 
       - name: Upload the packaged OpenWrt
         uses: ncipollo/release-action@main
