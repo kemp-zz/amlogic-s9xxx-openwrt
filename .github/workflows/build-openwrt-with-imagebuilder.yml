@@ -289,7 +289,29 @@ jobs:
           [[ -d "/builder/openwrt" ]] || mkdir -p /builder/openwrt
           ln -sf /builder/openwrt /home/runner/work/_actions/kemp-zz/amlogic-s9xxx-openwrt/main/openwrt
           df -hT ${PWD}
-
+          
+      - name: Verify and Extract Kernel Files
+        if: ${{ steps.imagebuilder.outputs.status }} == 'success' && !cancelled()
+        run: |
+          KERNEL_VERSION="${{ inputs.openwrt_kernel }}-1-7d9483ff60109a7caf36266e8917014e"
+          KERNEL_DIR="/home/runner/work/_actions/kemp-zz/amlogic-s9xxx-openwrt/main/openwrt/tmp/${KERNEL_VERSION}/smart-am40/rootfs/lib/modules/${KERNEL_VERSION}"
+          MODULES_ARCHIVE="modules-${KERNEL_VERSION}.tar.gz"
+          
+          mkdir -p ${KERNEL_DIR}
+          if [[ -f "${MODULES_ARCHIVE}" ]]; then
+            tar -xzvf ${MODULES_ARCHIVE} -C ${KERNEL_DIR}
+            echo "Kernel modules extracted to ${KERNEL_DIR}"
+          else
+            echo "Error: Kernel modules archive ${MODULES_ARCHIVE} not found." >&2
+            exit 1
+          fi
+          
+          if [[ -d "${KERNEL_DIR}" ]]; then
+            echo "Directory ${KERNEL_DIR} verified."
+          else
+            echo "Error: Directory ${KERNEL_DIR} does not exist." >&2
+            exit 1
+          fi
       - name: Packaging OpenWrt
         if: ${{ steps.imagebuilder.outputs.status }} == 'success' && !cancelled()
         uses: kemp-zz/amlogic-s9xxx-openwrt@main
