@@ -16,7 +16,7 @@ jobs:
 
     - name: Download and extract kernel debug files
       run: |
-        wget https://mirrors.vsean.net/openwrt/releases/23.05.3/targets/armsr/armv8/kernel-debug.tar.zst
+        wget https://immortalwrt.kyarucloud.moe/releases/23.05.3/targets/armsr/armv8/kernel-debug.tar.zst
         tar -I zstd -xvf kernel-debug.tar.zst
 
     - name: Search for vermagic in kernel debug files
@@ -27,7 +27,7 @@ jobs:
 
     - name: Download and analyze kernel binary
       run: |
-        wget https://mirrors.vsean.net/openwrt/releases/23.05.3/targets/armsr/armv8/immortalwrt-23.05.3-armsr-armv8-generic-kernel.bin
+        wget https://immortalwrt.kyarucloud.moe/releases/23.05.3/targets/armsr/armv8/immortalwrt-23.05.3-armsr-armv8-generic-kernel.bin
         VERMAGIC_KERNEL=$(strings immortalwrt-23.05.3-armsr-armv8-generic-kernel.bin | grep -E '^[0-9]+\.[0-9]+\.[0-9]+ SMP' | head -n 1)
         echo "VERMAGIC_KERNEL=$VERMAGIC_KERNEL" >> $GITHUB_ENV
         echo "Vermagic from kernel binary: $VERMAGIC_KERNEL"
