@@ -292,42 +292,61 @@ jobs:
           
       - name: Prepare Kernel
         run: |
-          KERNEL_VERSION="${{ inputs.openwrt_kernel }}"
-          KERNEL_FILE="5.15.162.tar.gz"
-          KERNEL_URL="https://github.com/${{ inputs.kernel_repo }}/releases/download/kernel_stable/${KERNEL_FILE}"
-          
-          wget ${KERNEL_URL}
-          tar -xzf ${KERNEL_FILE}
-          
-          # 获取实际的内核版本
-          ACTUAL_KERNEL_VERSION=$(ls lib/modules)
-          echo "ACTUAL_KERNEL_VERSION=${ACTUAL_KERNEL_VERSION}" >> $GITHUB_ENV
-          
-          echo "Downloaded kernel version: ${KERNEL_VERSION}"
-          echo "Actual kernel version: ${ACTUAL_KERNEL_VERSION}"       
-
-      - name: Packaging OpenWrt
-        if: ${{ steps.imagebuilder.outputs.status }} == 'success' && !cancelled()
-        uses: kemp-zz/amlogic-s9xxx-openwrt@main
-        with:
-          openwrt_path: imagebuilder/bin/targets/*/*/*rootfs.tar.gz
-          openwrt_board: ${{ inputs.openwrt_board }}
-          openwrt_kernel: ${{ env.ACTUAL_KERNEL_VERSION }}
-          auto_kernel: ${{ inputs.auto_kernel }}
-          kernel_repo: ${{ inputs.kernel_repo }}
-          kernel_usage: ${{ inputs.kernel_usage }}
-          builder_name: ${{ inputs.builder_name }}
+         KERNEL_VERSION="${{ inputs.openwrt_kernel }}"
+         KERNEL_FILE="5.15.162.tar.gz"
+         KERNEL_URL="https://github.com/${{ inputs.kernel_repo }}/releases/download/kernel_stable/${KERNEL_FILE}"
+    
+         wget ${KERNEL_URL}
+    
+         echo "Kernel file content:"
+         tar -tvf ${KERNEL_FILE}
+    
+         mkdir -p kernel_extract
+         tar -xzf ${KERNEL_FILE} -C kernel_extract
+    
+         echo "Extracted content:"
+         ls -R kernel_extract
+    
+         # 查找并解压 modules-*.tar.gz 文件
+         MODULES_FILE=$(find kernel_extract -name "modules-*.tar.gz")
+         if [ -n "$MODULES_FILE" ]; then
+           echo "Found modules file: $MODULES_FILE"
+           mkdir -p kernel_modules
+           tar -xzf "$MODULES_FILE" -C kernel_modules
+           echo "Modules content:"
+           ls -R kernel_modules
+         else
+           echo "No modules-*.tar.gz file found"
+         fi
+    
+         # 尝试从文件名中提取实际的内核版本
+         ACTUAL_KERNEL_VERSION=$(basename "$MODULES_FILE" | sed -E 's/modules-(.+)\.tar\.gz/\1/')
+         
+         if [ -z "$ACTUAL_KERNEL_VERSION" ]; then
+           echo "Failed to determine actual kernel version"
+           ACTUAL_KERNEL_VERSION=$KERNEL_VERSION
+         fi
+    
+         echo "ACTUAL_KERNEL_VERSION=${ACTUAL_KERNEL_VERSION}" >> $GITHUB_ENV
+    
+         echo "Downloaded kernel version: ${KERNEL_VERSION}"
+         echo "Detected kernel version: ${ACTUAL_KERNEL_VERSION}"
 
       - name: Debug Kernel Information
         if: always()
         run: |
-          echo "Selected kernel version: ${{ inputs.openwrt_kernel }}"
-          echo "Actual kernel version: ${{ env.ACTUAL_KERNEL_VERSION }}"
-          echo "Kernel modules directory:"
-          ls -R lib/modules
-          echo "OpenWrt tmp directory:"
-          ls -R /home/runner/work/_actions/kemp-zz/amlogic-s9xxx-openwrt/main/openwrt/tmp || echo "Directory not found"
-
+         echo "Selected kernel version: ${{ inputs.openwrt_kernel }}"
+         echo "Actual kernel version: ${{ env.ACTUAL_KERNEL_VERSION }}"
+         echo "Kernel file structure:"
+         ls -R kernel_extract
+         echo "Modules structure:"
+         ls -R kernel_modules
+         echo "Current working directory:"
+         pwd
+         echo "Current directory content:"
+         ls -la
+         echo "OpenWrt tmp directory:"
+         ls -R /home/runner/work/_actions/kemp-zz/amlogic-s9xxx-openwrt/main/openwrt/tmp || echo "Directory not found"
 
       - name: Upload the packaged OpenWrt
         uses: ncipollo/release-action@main
