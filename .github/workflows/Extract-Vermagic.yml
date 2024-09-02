@@ -1,53 +1,40 @@
-name: Extract Vermagic
+name: Extract and Save Vermagic
 
 on:
   workflow_dispatch:  # 允许手动触发
   schedule:
-    - cron: '0 0 * * 0'  # 每周日运行一次
+    - cron: '0 0 1 * *'  # 每月1日运行
 
 jobs:
   extract_vermagic:
     runs-on: ubuntu-latest
     steps:
-    - name: Install required packages
+    - name: Extract vermagic from kernel debug files
       run: |
-        sudo apt-get update
-        sudo apt-get install -y zstd binutils
+        # 安装必要的工具
+        sudo apt-get update && sudo apt-get install -y zstd
 
-    - name: Download and extract kernel debug files
-      run: |
-        wget https://immortalwrt.kyarucloud.moe/releases/23.05.3/targets/armsr/armv8/kernel-debug.tar.zst
+        # 下载并解压 kernel-debug.tar.zst
+        wget https://mirrors.vsean.net/openwrt/releases/23.05.3/targets/armsr/armv8/kernel-debug.tar.zst
         tar -I zstd -xvf kernel-debug.tar.zst
 
-    - name: Search for vermagic in kernel debug files
-      run: |
-        VERMAGIC_DEBUG=$(grep -r "vermagic=" . | head -n 1 | cut -d'=' -f2)
-        echo "VERMAGIC_DEBUG=$VERMAGIC_DEBUG" >> $GITHUB_ENV
-        echo "Vermagic from debug files: $VERMAGIC_DEBUG"
+        # 搜索 vermagic 信息
+        VERMAGIC=$(find . -name "*.ko" -print0 | xargs -0 modinfo 2>/dev/null | grep "vermagic" | head -n 1 | awk '{print $2}')
 
-    - name: Download and analyze kernel binary
-      run: |
-        wget https://immortalwrt.kyarucloud.moe/releases/23.05.3/targets/armsr/armv8/immortalwrt-23.05.3-armsr-armv8-generic-kernel.bin
-        VERMAGIC_KERNEL=$(strings immortalwrt-23.05.3-armsr-armv8-generic-kernel.bin | grep -E '^[0-9]+\.[0-9]+\.[0-9]+ SMP' | head -n 1)
-        echo "VERMAGIC_KERNEL=$VERMAGIC_KERNEL" >> $GITHUB_ENV
-        echo "Vermagic from kernel binary: $VERMAGIC_KERNEL"
-
-    - name: Compare and output final vermagic
-      run: |
-        if [ -n "$VERMAGIC_DEBUG" ]; then
-          FINAL_VERMAGIC=$VERMAGIC_DEBUG
-        elif [ -n "$VERMAGIC_KERNEL" ]; then
-          FINAL_VERMAGIC=$VERMAGIC_KERNEL
-        else
-          echo "Failed to extract vermagic from both sources"
+        if [ -z "$VERMAGIC" ]; then
+          echo "Failed to extract vermagic from kernel modules"
           exit 1
         fi
-        echo "Final vermagic: $FINAL_VERMAGIC"
-        echo "FINAL_VERMAGIC=$FINAL_VERMAGIC" >> $GITHUB_ENV
 
-    - name: Create vermagic file
-      run: |
-        echo "${{ env.FINAL_VERMAGIC }}" > vermagic.txt
+        echo "VERMAGIC=$VERMAGIC" >> $GITHUB_ENV
+        echo "Extracted vermagic: $VERMAGIC"
+
+        # 保存 vermagic 到文件
+        echo "$VERMAGIC" > vermagic.txt
+
+        # 清理文件
+        rm -rf kernel-debug.tar.zst
+        rm -rf ./lib
 
     - name: Upload vermagic as artifact
       uses: actions/upload-artifact@v2
@@ -55,8 +42,11 @@ jobs:
         name: vermagic
         path: vermagic.txt
 
-    - name: Cleanup
-      run: |
-        rm -rf kernel-debug.tar.zst
-        rm -rf ./lib
-        rm -f immortalwrt-23.05.3-armsr-armv8-generic-kernel.bin
+    - name: Create vermagic release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: vermagic.txt
+        name: Vermagic ${{ env.VERMAGIC }}
+        tag_name: vermagic-${{ env.VERMAGIC }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
