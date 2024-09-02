@@ -1,45 +1,70 @@
-- name: Extract vermagic from kernel debug files
-  run: |
-    # 安装必要的工具
-    sudo apt-get update && sudo apt-get install -y zstd kmod
+name: Extract and Save Vermagic
 
-    # 下载并解压 kernel-debug.tar.zst
-    wget https://mirrors.vsean.net/openwrt/releases/23.05.3/targets/armsr/armv8/kernel-debug.tar.zst
-    tar -I zstd -xvf kernel-debug.tar.zst
+on:
+  workflow_dispatch:  # 允许手动触发
+  schedule:
+    - cron: '0 0 1 * *'  # 每月1日运行
 
-    # 显示解压后的目录结构
-    echo "Directory structure after extraction:"
-    find . -type d | sort | sed 's/[^-][^\/]*\//  |/g; s/  |/, /g'
+jobs:
+  extract_vermagic:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Extract vermagic from kernel debug files
+      run: |
+       # 安装必要的工具
+       sudo apt-get update && sudo apt-get install -y zstd kmod
 
-    # 尝试使用 modinfo 提取 vermagic
-    echo "Attempting to extract vermagic using modinfo..."
-    VERMAGIC=$(find . -name "*.ko" -print0 | xargs -0 modinfo 2>/dev/null | grep "vermagic" | head -n 1 | awk '{print $2}')
+       # 下载并解压 kernel-debug.tar.zst
+       wget https://mirrors.vsean.net/openwrt/releases/23.05.3/targets/armsr/armv8/kernel-debug.tar.zst
+       tar -I zstd -xvf kernel-debug.tar.zst
 
-    # 如果 modinfo 失败，尝试使用 strings
-    if [ -z "$VERMAGIC" ]; then
-      echo "modinfo failed to extract vermagic, trying strings..."
-      VERMAGIC=$(find . -name "*.ko" -print0 | xargs -0 strings | grep "^[0-9]\+\.[0-9]\+\.[0-9]\+[-_]" | grep "SMP" | head -n 1)
-    fi
+       # 显示解压后的目录结构
+       echo "Directory structure after extraction:"
+       find . -type d | sort | sed 's/[^-][^\/]*\//  |/g; s/  |/, /g'
 
-    # 如果仍然失败，显示一个 .ko 文件的内容
-    if [ -z "$VERMAGIC" ]; then
-      echo "Failed to extract vermagic. Showing content of a .ko file:"
-      SAMPLE_KO=$(find . -name "*.ko" | head -n 1)
-      if [ -n "$SAMPLE_KO" ]; then
-        echo "Content of $SAMPLE_KO:"
-        strings "$SAMPLE_KO" | grep -i "vermagic"
-      else
-        echo "No .ko files found."
-      fi
-      exit 1
-    fi
+       # 尝试使用 modinfo 提取 vermagic
+       echo "Attempting to extract vermagic using modinfo..."
+       VERMAGIC=$(find . -name "*.ko" -print0 | xargs -0 modinfo 2>/dev/null | grep "vermagic" | head -n 1 | awk '{print $2}')
 
-    echo "VERMAGIC=$VERMAGIC" >> $GITHUB_ENV
-    echo "Extracted vermagic: $VERMAGIC"
+       # 如果 modinfo 失败，尝试使用 strings
+       if [ -z "$VERMAGIC" ]; then
+         echo "modinfo failed to extract vermagic, trying strings..."
+         VERMAGIC=$(find . -name "*.ko" -print0 | xargs -0 strings | grep "^[0-9]\+\.[0-9]\+\.[0-9]\+[-_]" | grep "SMP" | head -n 1)
+       fi
 
-    # 保存 vermagic 到文件
-    echo "$VERMAGIC" > vermagic.txt
+       # 如果仍然失败，显示一个 .ko 文件的内容
+       if [ -z "$VERMAGIC" ]; then
+         echo "Failed to extract vermagic. Showing content of a .ko file:"
+         SAMPLE_KO=$(find . -name "*.ko" | head -n 1)
+         if [ -n "$SAMPLE_KO" ]; then
+           echo "Content of $SAMPLE_KO:"
+           strings "$SAMPLE_KO" | grep -i "vermagic"
+         else
+           echo "No .ko files found."
+         fi
+         exit 1
+       fi
 
-    # 清理文件
-    rm -rf kernel-debug.tar.zst
-    rm -rf ./lib
+       echo "VERMAGIC=$VERMAGIC" >> $GITHUB_ENV
+       echo "Extracted vermagic: $VERMAGIC"
+
+       # 保存 vermagic 到文件
+       echo "$VERMAGIC" > vermagic.txt
+
+       # 清理文件
+       rm -rf kernel-debug.tar.zst
+       rm -rf ./lib
+    - name: Upload vermagic as artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: vermagic
+        path: vermagic.txt
+
+    - name: Create vermagic release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: vermagic.txt
+        name: Vermagic ${{ env.VERMAGIC }}
+        tag_name: vermagic-${{ env.VERMAGIC }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
