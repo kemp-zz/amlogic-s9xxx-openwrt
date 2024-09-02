@@ -289,7 +289,26 @@ jobs:
           
           # List the contents of the openwrt directory
           ls -la /builder/openwrt
+          
+      - name: Prepare OpenWrt rootfs
+        if: ${{ steps.imagebuilder.outputs.status }} == 'success' && !cancelled()
+        run: |
+          # 创建必要的目录
+          sudo mkdir -p /builder/openwrt/bin/targets/armvirt/64
+          sudo chown -R runner:runner /builder/openwrt
 
+          # 复制 imagebuilder 生成的文件到正确的位置
+          sudo cp -v imagebuilder/bin/targets/armvirt/64/openwrt-armvirt-64-default-rootfs.tar.gz /builder/openwrt/bin/targets/armvirt/64/
+
+          # 显示文件内容
+          ls -la /builder/openwrt/bin/targets/armvirt/64/
+
+          # 创建符号链接
+          ln -sf /builder/openwrt /home/runner/work/_actions/kemp-zz/amlogic-s9xxx-openwrt/main/openwrt
+
+          # 显示符号链接
+          ls -la /home/runner/work/_actions/kemp-zz/amlogic-s9xxx-openwrt/main/
+          
       - name: Build OpenWrt firmware
         if: ${{ steps.imagebuilder.outputs.status }} == 'success' && !cancelled()
         uses: kemp-zz/amlogic-s9xxx-openwrt@main
@@ -301,6 +320,25 @@ jobs:
           kernel_repo: ${{ inputs.kernel_repo }}
           kernel_usage: ${{ inputs.kernel_usage }}
           builder_name: ${{ inputs.builder_name }}
+        env:
+          GITHUB_WORKSPACE: ${{ github.workspace }}
+          OPENWRT_ARMVIRT: immortalwrt-23.05.3-armsr-armv8-generic-rootfs.tar.gz
+
+      - name: Debug information
+        if: always()
+        run: |
+          echo "Current directory: $(pwd)"
+          echo "GITHUB_WORKSPACE: $GITHUB_WORKSPACE"
+          echo "Contents of GITHUB_WORKSPACE:"
+          ls -la $GITHUB_WORKSPACE
+          echo "Contents of /builder/openwrt:"
+          ls -la /builder/openwrt
+          echo "Contents of /builder/openwrt/bin/targets/armsr/armv8:"
+          ls -la /builder/openwrt/bin/targets/armsr/armv8
+          echo "Contents of /home/runner/work/_actions/kemp-zz/amlogic-s9xxx-openwrt/main:"
+          ls -la /home/runner/work/_actions/kemp-zz/amlogic-s9xxx-openwrt/main
+          echo "Contents of /home/runner/work/_actions/kemp-zz/amlogic-s9xxx-openwrt/main/openwrt/bin/targets/armsr/armv8:"
+          ls -la /home/runner/work/_actions/kemp-zz/amlogic-s9xxx-openwrt/main/openwrt/bin/targets/armsr/armv8
 
       - name: Upload the packaged OpenWrt
         uses: ncipollo/release-action@main
