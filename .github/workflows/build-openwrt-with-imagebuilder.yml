@@ -292,61 +292,70 @@ jobs:
           
       - name: Prepare Kernel
         run: |
-         KERNEL_VERSION="${{ inputs.openwrt_kernel }}"
-         KERNEL_FILE="5.15.162.tar.gz"
-         KERNEL_URL="https://github.com/${{ inputs.kernel_repo }}/releases/download/kernel_stable/${KERNEL_FILE}"
+          set -x  # Enable debug mode to see each command as it's executed
+          KERNEL_VERSION="${{ inputs.openwrt_kernel }}"
+          KERNEL_FILE="5.15.162.tar.gz"
+          KERNEL_URL="https://github.com/${{ inputs.kernel_repo }}/releases/download/kernel_stable/${KERNEL_FILE}"
     
-         wget ${KERNEL_URL}
+          echo "Downloading kernel file from: ${KERNEL_URL}"
+          wget ${KERNEL_URL} || { echo "Failed to download kernel file"; exit 1; }
     
-         echo "Kernel file content:"
-         tar -tvf ${KERNEL_FILE}
+          echo "Kernel file content:"
+          tar -tvf ${KERNEL_FILE} || { echo "Failed to list contents of kernel file"; exit 1; }
     
-         mkdir -p kernel_extract
-         tar -xzf ${KERNEL_FILE} -C kernel_extract
+          mkdir -p kernel_extract
+          echo "Extracting kernel file to kernel_extract directory"
+          tar -xzf ${KERNEL_FILE} -C kernel_extract || { echo "Failed to extract kernel file"; exit 1; }
     
-         echo "Extracted content:"
-         ls -R kernel_extract
+          echo "Extracted content:"
+          ls -R kernel_extract || { echo "Failed to list extracted content"; exit 1; }
     
-         # 查找并解压 modules-*.tar.gz 文件
-         MODULES_FILE=$(find kernel_extract -name "modules-*.tar.gz")
-         if [ -n "$MODULES_FILE" ]; then
-           echo "Found modules file: $MODULES_FILE"
-           mkdir -p kernel_modules
-           tar -xzf "$MODULES_FILE" -C kernel_modules
-           echo "Modules content:"
-           ls -R kernel_modules
-         else
-           echo "No modules-*.tar.gz file found"
-         fi
+          # 查找并解压 modules-*.tar.gz 文件
+          MODULES_FILE=$(find kernel_extract -name "modules-*.tar.gz")
+          if [ -n "$MODULES_FILE" ]; then
+            echo "Found modules file: $MODULES_FILE"
+            mkdir -p kernel_modules
+            tar -xzf "$MODULES_FILE" -C kernel_modules || { echo "Failed to extract modules file"; exit 1; }
+            echo "Modules content:"
+            ls -R kernel_modules || { echo "Failed to list modules content"; exit 1; }
+          else
+            echo "No modules-*.tar.gz file found"
+          fi
     
-         # 尝试从文件名中提取实际的内核版本
-         ACTUAL_KERNEL_VERSION=$(basename "$MODULES_FILE" | sed -E 's/modules-(.+)\.tar\.gz/\1/')
-         
-         if [ -z "$ACTUAL_KERNEL_VERSION" ]; then
-           echo "Failed to determine actual kernel version"
-           ACTUAL_KERNEL_VERSION=$KERNEL_VERSION
-         fi
+          # 尝试从文件名中提取实际的内核版本
+          ACTUAL_KERNEL_VERSION=$(basename "$MODULES_FILE" | sed -E 's/modules-(.+)\.tar\.gz/\1/')
     
-         echo "ACTUAL_KERNEL_VERSION=${ACTUAL_KERNEL_VERSION}" >> $GITHUB_ENV
+          if [ -z "$ACTUAL_KERNEL_VERSION" ]; then
+            echo "Failed to determine actual kernel version"
+            ACTUAL_KERNEL_VERSION=$KERNEL_VERSION
+          fi
     
-         echo "Downloaded kernel version: ${KERNEL_VERSION}"
-         echo "Detected kernel version: ${ACTUAL_KERNEL_VERSION}"
+          echo "ACTUAL_KERNEL_VERSION=${ACTUAL_KERNEL_VERSION}" >> $GITHUB_ENV
+    
+          echo "Downloaded kernel version: ${KERNEL_VERSION}"
+          echo "Detected kernel version: ${ACTUAL_KERNEL_VERSION}"
+    
+          # 显示当前工作目录和内容
+          echo "Current working directory:"
+          pwd
+          echo "Current directory content:"
+          ls -la
 
       - name: Debug Kernel Information
         if: always()
         run: |
-         echo "Selected kernel version: ${{ inputs.openwrt_kernel }}"
-         echo "Actual kernel version: ${{ env.ACTUAL_KERNEL_VERSION }}"
-         echo "Kernel file structure:"
-         ls -R kernel_extract
-         echo "Modules structure:"
-         ls -R kernel_modules
-         echo "Current working directory:"
-         pwd
-         echo "Current directory content:"
-         ls -la
-         echo "OpenWrt tmp directory:"
-         ls -R /home/runner/work/_actions/kemp-zz/amlogic-s9xxx-openwrt/main/openwrt/tmp || echo "Directory not found"
+          echo "Selected kernel version: ${{ inputs.openwrt_kernel }}"
+          echo "Actual kernel version: ${{ env.ACTUAL_KERNEL_VERSION }}"
+          echo "Kernel file structure:"
+          ls -R kernel_extract || echo "kernel_extract directory not found"
+          echo "Modules structure:"
+          ls -R kernel_modules || echo "kernel_modules directory not found"
+          echo "Current working directory:"
+          pwd
+          echo "Current directory content:"
+          ls -la
+          echo "OpenWrt tmp directory:"
+          ls -R /home/runner/work/_actions/kemp-zz/amlogic-s9xxx-openwrt/main/openwrt/tmp || echo "Directory not found"
 
       - name: Upload the packaged OpenWrt
         uses: ncipollo/release-action@main
