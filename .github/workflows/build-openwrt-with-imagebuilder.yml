@@ -174,12 +174,12 @@ on:
       openwrt_kernel:
         description: "Select kernel version"
         required: false
-        default: "6.1.y_6.6.y"
+        default: "5.15.162"
         type: choice
         options:
           - 5.4.y
           - 5.10.y
-          - 5.15.y
+          - 5.15.162
           - 6.1.y
           - 6.6.y
           - 6.1.y_6.6.y
@@ -192,10 +192,11 @@ on:
       kernel_repo:
         description: "Set the kernel repository"
         required: false
-        default: "ophub/kernel"
+        default: "kemp-zz/kernel"
         type: choice
         options:
           - ophub/kernel
+          - kemp-zz/kernel
       kernel_usage:
         description: "Set the tags of the stable kernel."
         required: false
