@@ -155,12 +155,19 @@ jobs:
           realpath kemp-zz/amlogic-s9xxx-openwrt/main/openwrt
           df -hT ${PWD}
 
+      - name: Debug OpenWrt files
+        run: |
+          echo "Current directory: $(pwd)"
+          echo "ImageBuilder directory contents:"
+          ls -R imagebuilder/bin/targets
+          echo "Searching for rootfs.tar.gz:"
+          find imagebuilder -name "*rootfs.tar.gz"
+
       - name: Packaging OpenWrt
-        if: ${{ steps.imagebuilder.outputs.status }} == 'success' && !cancelled()
         uses: kemp-zz/amlogic-s9xxx-openwrt@main
         with:
-          openwrt_path: imagebuilder/bin/targets/*/*/*rootfs.tar.gz
-          openwrt_board: ${{ inputs.openwrt_board }}
+          openwrt_path: imagebuilder/bin/targets/armsr/armv8/immortalwrt-23.05.3-armsr-armv8-generic-rootfs.tar.gz
+          openwrt_board: ${{ inputs.openwrt_board }}   
           openwrt_kernel: ${{ inputs.openwrt_kernel }}
           auto_kernel: ${{ inputs.auto_kernel }}
           kernel_repo: ${{ inputs.kernel_repo }}
