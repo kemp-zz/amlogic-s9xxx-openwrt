@@ -197,3 +197,4 @@ jobs:
             - Login to OpenWrt → System → Amlogic Service → Install OpenWrt
             ### OpenWrt Image Verification
             - sha256sum
+            - smart-am40专用
